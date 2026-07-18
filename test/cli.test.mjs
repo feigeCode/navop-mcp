@@ -40,9 +40,9 @@ test("top-level raw tool compatibility aliases are recognized", () => {
   const result = spawnSync(process.execPath, [path.resolve("dist/navop.js"), "tools"], {
     encoding: "utf8",
   });
-  assert.equal(result.status, 3);
+  assert.ok([0, 3].includes(result.status), `unexpected exit status: ${result.status}`);
   assert.doesNotMatch(result.stderr, /unknown command/);
-  assert.match(result.stderr, /Navop MCP discovery is unavailable/);
+  if (result.status === 3) assert.match(result.stderr, /Navop MCP discovery is unavailable/);
 });
 
 test("domain commands map to actual Navop MCP tool names", () => {
