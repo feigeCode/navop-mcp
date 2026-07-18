@@ -23,6 +23,103 @@ test("domain CLI discovers the schema and calls the mapped MCP tool", async () =
   server.close();
 });
 
+test("zero-argument leaf commands execute instead of showing group help", async () => {
+  const calls = [];
+  const token = "0".repeat(64);
+  const tools = [{
+    name: "connections.list_sessions",
+    description: "List sessions",
+    inputSchema: { type: "object", properties: {} },
+  }];
+  const server = net.createServer((socket) => serve(socket, token, calls, tools));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  const root = await mkdtemp(path.join(os.tmpdir(), "navop-zero-arg-cli-"));
+  const discovery = path.join(root, "public-mcp.json");
+  await writeFile(discovery, JSON.stringify({ version: 1, app: "navop", pid: 1, host: "127.0.0.1", port: address.port, token, mode: "persistent" }));
+
+  const result = await run(["connections", "sessions", "--discovery", discovery, "--json"]);
+  assert.equal(result.code, 0);
+  assert.deepEqual(JSON.parse(result.stdout), { ok: true, result: { accepted: true } });
+  assert.deepEqual(calls, [{ name: "connections.list_sessions", arguments: {} }]);
+  server.close();
+});
+
+test("domain connection aliases map to the host target field", async () => {
+  const calls = [];
+  const token = "3".repeat(64);
+  const tools = [{
+    name: "db.query",
+    description: "Query database",
+    inputSchema: {
+      type: "object",
+      properties: { target: { type: "string" }, sql: { type: "string" } },
+      required: ["target", "sql"],
+    },
+  }];
+  const server = net.createServer((socket) => serve(socket, token, calls, tools));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  const root = await mkdtemp(path.join(os.tmpdir(), "navop-alias-cli-"));
+  const discovery = path.join(root, "public-mcp.json");
+  await writeFile(discovery, JSON.stringify({ version: 1, app: "navop", pid: 1, host: "127.0.0.1", port: address.port, token, mode: "persistent" }));
+
+  const result = await run(["db", "query", "--connection", "174", "--sql", "SELECT 1", "--discovery", discovery, "--json"]);
+  assert.equal(result.code, 0);
+  assert.deepEqual(calls, [{ name: "db.query", arguments: { target: "174", sql: "SELECT 1" } }]);
+  server.close();
+});
+
+test("mongo domain commands only map CLI arguments to Rust-hosted MCP tools", async () => {
+  const calls = [];
+  const token = "4".repeat(64);
+  const tools = [{
+    name: "mongo.find",
+    description: "Find MongoDB documents",
+    inputSchema: {
+      type: "object",
+      properties: {
+        target: { type: "string" },
+        database: { type: "string" },
+        collection: { type: "string" },
+        filter: { type: "object" },
+        limit: { type: "integer" },
+      },
+      required: ["target", "database", "collection"],
+    },
+  }];
+  const server = net.createServer((socket) => serve(socket, token, calls, tools));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  const root = await mkdtemp(path.join(os.tmpdir(), "navop-mongo-cli-"));
+  const discovery = path.join(root, "public-mcp.json");
+  await writeFile(discovery, JSON.stringify({ version: 1, app: "navop", pid: 1, host: "127.0.0.1", port: address.port, token, mode: "persistent" }));
+
+  const result = await run([
+    "mongo", "find",
+    "--connection-id", "mongo-1",
+    "--database", "app",
+    "--collection", "users",
+    "--filter", '{"active":true}',
+    "--limit", "20",
+    "--discovery", discovery,
+    "--json",
+  ]);
+
+  assert.equal(result.code, 0);
+  assert.deepEqual(calls, [{
+    name: "mongo.find",
+    arguments: {
+      target: "mongo-1",
+      database: "app",
+      collection: "users",
+      filter: { active: true },
+      limit: 20,
+    },
+  }]);
+  server.close();
+});
+
 test("domain CLI reports an unexposed tool without falling back or guessing", async () => {
   const token = "f".repeat(64);
   const server = net.createServer((socket) => serve(socket, token, [], []));
@@ -33,7 +130,29 @@ test("domain CLI reports an unexposed tool without falling back or guessing", as
   await writeFile(discovery, JSON.stringify({ version: 1, app: "navop", pid: 1, host: "127.0.0.1", port: address.port, token, mode: "persistent" }));
   const result = await run(["db", "query", "--connection", "1", "--sql", "SELECT 1", "--discovery", discovery, "--json"]);
   assert.equal(result.code, 5);
-  assert.equal(JSON.parse(result.stdout).code, "tool_not_found");
+  const failure = JSON.parse(result.stdout);
+  assert.equal(failure.code, "tool_not_found");
+  assert.equal(failure.details.requiredTool, "db.query");
+  assert.ok(failure.details.actions.some((action) => action.includes("Tool Exposure")));
+  server.close();
+});
+
+test("status reports live tools, unavailable commands, guidance, and permission mode", async () => {
+  const token = "2".repeat(64);
+  const server = net.createServer((socket) => serve(socket, token, [], [sshExecTool()]));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  const root = await mkdtemp(path.join(os.tmpdir(), "navop-status-cli-"));
+  const discovery = path.join(root, "public-mcp.json");
+  await writeFile(discovery, JSON.stringify({ version: 1, app: "navop", pid: 1, host: "127.0.0.1", port: address.port, token, mode: "persistent" }));
+
+  const result = await run(["status", "--discovery", discovery, "--json"]);
+  assert.equal(result.code, 0);
+  const status = JSON.parse(result.stdout).result;
+  assert.equal(status.permissionMode, "allow");
+  assert.deepEqual(status.availableTools, ["ssh.exec"]);
+  assert.ok(status.unavailableTools.includes("db.query"));
+  assert.ok(status.guidance.some((line) => line.includes("automatically")));
   server.close();
 });
 
@@ -63,7 +182,12 @@ function serve(socket, token, calls, tools = [sshExecTool()]) {
       if (line === token || !line.startsWith("{")) continue;
       const message = JSON.parse(line);
       if (message.id === undefined) continue;
-      if (message.method === "initialize") respond(socket, message.id, { protocolVersion: "2025-11-25", capabilities: {}, serverInfo: { name: "navop", version: "1" } });
+      if (message.method === "initialize") respond(socket, message.id, {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        serverInfo: { name: "navop", version: "1" },
+        instructions: "Navop Public MCP permission_mode=allow: mutating tools run automatically.",
+      });
       if (message.method === "tools/list") respond(socket, message.id, { tools });
       if (message.method === "tools/call") {
         calls.push(message.params);

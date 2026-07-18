@@ -27,6 +27,24 @@ export const DOMAIN_COMMANDS: DomainCommand[] = [
   command("redis keys", "redis.keys", "List matching Redis keys"),
   command("redis get", "redis.get", "Read a Redis value"),
   command("redis set", "redis.set", "Write a Redis value"),
+  command("mongo connections", "mongo.list_connections", "List active MongoDB connections"),
+  command("mongo databases", "mongo.list_databases", "List MongoDB databases"),
+  command("mongo collections", "mongo.list_collections", "List MongoDB collections"),
+  command("mongo find", "mongo.find", "Find MongoDB documents"),
+  command("mongo aggregate", "mongo.aggregate", "Aggregate MongoDB documents"),
+  command("mongo count", "mongo.count", "Count MongoDB documents"),
+  command("mongo indexes", "mongo.list_indexes", "List MongoDB indexes"),
+  command("mongo index create", "mongo.create_index", "Create a MongoDB index"),
+  command("mongo index drop", "mongo.drop_index", "Drop a MongoDB index"),
+  command("mongo collection create", "mongo.create_collection", "Create a MongoDB collection"),
+  command("mongo database drop", "mongo.drop_database", "Drop a MongoDB database"),
+  command("mongo validation get", "mongo.get_validation", "Read MongoDB collection validation"),
+  command("mongo validation set", "mongo.set_validation", "Set MongoDB collection validation"),
+  command("mongo insert", "mongo.insert", "Insert a MongoDB document"),
+  command("mongo replace", "mongo.replace", "Replace a MongoDB document"),
+  command("mongo update", "mongo.update", "Update MongoDB document fields"),
+  command("mongo delete", "mongo.delete", "Delete a MongoDB document"),
+  command("mongo explain", "mongo.explain", "Explain a MongoDB find operation"),
   command("sftp list", "sftp.list", "List a remote directory"),
   command("sftp read", "sftp.read", "Read a remote file"),
   command("sftp write", "sftp.write", "Write a remote file"),
@@ -49,6 +67,8 @@ export const DOMAIN_COMMANDS: DomainCommand[] = [
   command("functions list", "internal_functions.list", "List Navop internal functions"),
   command("functions call", "internal_functions.call", "Call a Navop internal function"),
 ];
+
+export const EXPECTED_TOOL_NAMES = [...new Set(DOMAIN_COMMANDS.map((command) => command.tool))];
 
 export function resolveDomainCommand(tokens: string[]): DomainCommand {
   const matches = DOMAIN_COMMANDS.filter((candidate) => prefixMatches(tokens, candidate.path));

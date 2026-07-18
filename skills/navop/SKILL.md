@@ -13,6 +13,14 @@ Every Agent-initiated CLI command must include `--json`. Start with:
 navop status --json
 ```
 
+Read the status result before choosing a tool:
+
+- If Public MCP is unavailable, ask the user to start Navop and enable **Settings > General > MCP > MCP Server**.
+- Inspect `permissionMode`, `availableTools`, `unavailableTools`, and `guidance`.
+- If a tool is unavailable, tell the user exactly which tool is missing. Ask them to enable its group under **Settings > General > Tool Exposure** and open the relevant SSH, terminal, database, Redis, MongoDB, or SFTP connection/session.
+- `deny` mode blocks mutations. `ask` mode requires approval in Navop. `allow` mode runs mutations automatically, but still requires clear user intent for destructive actions.
+- Never describe a host capability as enabled merely because the CLI has a command for it; the live `availableTools` list is authoritative.
+
 Use domain commands as the primary interface:
 
 ```bash
@@ -21,6 +29,7 @@ navop ssh exec --target <session-id> --command '<command>' --json
 navop terminal read --target <terminal-id> --lines 100 --json
 navop db query --connection <id> --sql '<read-only-sql>' --json
 navop redis get --connection-id <id> --key <key> --json
+navop mongo find --connection-id <id> --database app --collection users --filter '{"active":true}' --json
 navop sftp read --connection <id> --path <remote-path> --json
 ```
 

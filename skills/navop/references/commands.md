@@ -64,6 +64,23 @@ navop redis set --connection-id <id> --key <key> --value <value> --json
 navop redis command --connection-id <id> --command 'TTL user:1' --json
 ```
 
+## MongoDB
+
+MongoDB commands are thin mappings to the Rust-hosted `MongoConnection` implementation. JSON document arguments use MongoDB Extended JSON; the CLI does not parse or execute MongoDB business logic.
+
+```bash
+navop mongo connections --json
+navop mongo databases --connection-id <id> --json
+navop mongo collections --connection-id <id> --database app --json
+navop mongo find --connection-id <id> --database app --collection users --filter '{"active":true}' --limit 20 --json
+navop mongo aggregate --connection-id <id> --database app --collection users --pipeline '{"$match":{"active":true}}' --json
+navop mongo count --connection-id <id> --database app --collection users --filter '{}' --json
+navop mongo indexes --connection-id <id> --database app --collection users --json
+navop mongo insert --connection-id <id> --database app --collection users --document '{"name":"Ada"}' --json
+navop mongo update --connection-id <id> --database app --collection users --id '{"$oid":"..."}' --set '{"active":true}' --json
+navop mongo delete --connection-id <id> --database app --collection users --id '{"$oid":"..."}' --json
+```
+
 ## SFTP
 
 ```bash

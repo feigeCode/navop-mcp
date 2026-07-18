@@ -1,6 +1,6 @@
 {
   "name": "@navop/mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Navop MCP bridge, CLI, and agent Skill",
   "type": "module",
   "bin": {

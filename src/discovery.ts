@@ -42,7 +42,11 @@ export async function readDiscovery(file: string): Promise<DiscoveryDocument> {
   try {
     value = JSON.parse(await readFile(file, "utf8"));
   } catch (error) {
-    throw new NavopError("runtime_unavailable", `Navop MCP discovery is unavailable at ${file}`, errorMessage(error));
+    throw new NavopError(
+      "runtime_unavailable",
+      `Navop MCP discovery is unavailable at ${file}. Start Navop, then enable MCP Server in Settings > General > MCP.`,
+      { discoveryPath: file, cause: errorMessage(error), action: "Enable MCP Server in Navop Settings > General > MCP" },
+    );
   }
   return validateDiscovery(value);
 }

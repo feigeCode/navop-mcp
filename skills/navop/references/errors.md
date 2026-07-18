@@ -25,7 +25,7 @@ Exit codes:
 
 Recovery:
 
-- For exit `3`, ask the user to start Navop and enable Public MCP.
-- For exit `5`, inspect Navop Tool Exposure settings; do not substitute a different tool silently.
+- For exit `3`, ask the user to start Navop and enable **Settings > General > MCP > MCP Server**.
+- For exit `5`, report the exact missing tool, ask the user to enable its group under **Settings > General > Tool Exposure**, and ask them to open the relevant connection/session. Do not substitute a different tool silently.
 - For exit `6`, report the denial or tool error. Do not bypass it.
 - For exits `8` or `9`, retry read-only discovery calls when appropriate. Do not retry mutations automatically.

@@ -6,6 +6,7 @@ const DOMAINS: Array<[string, string]> = [
   ["terminal", "Operate visible Navop terminals"],
   ["db", "Query and modify databases"],
   ["redis", "Inspect and modify Redis"],
+  ["mongo", "Inspect and modify MongoDB"],
   ["sftp", "Operate remote files over SFTP"],
   ["connections", "Discover and manage saved connections"],
   ["workspace", "Inspect Navop workspaces"],

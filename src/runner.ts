@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 import { buildToolArguments } from "./arguments.js";
-import { commandChildren, resolveDomainCommand } from "./catalog.js";
+import { commandChildren, EXPECTED_TOOL_NAMES, resolveDomainCommand } from "./catalog.js";
 import { McpConnection } from "./connection.js";
 import { readDiscovery, resolveDiscoveryPath } from "./discovery.js";
 import { NavopError } from "./errors.js";
@@ -22,7 +22,10 @@ export async function runCli(argv: string[]): Promise<{ result?: unknown; text?:
   if (args[0] === "skill") return { result: await skillCommand(args.slice(1)), json: options.json };
   if (args[0] === "tool") return { result: await toolCommand(args.slice(1), options), json: options.json };
   if (args[0] === "mcp") throw new NavopError("invalid_arguments", "navop mcp must be started as a stdio bridge");
-  if (args.every((value) => !value.startsWith("--")) && commandChildren(args).length > 0) {
+  if (
+    args.every((value) => !value.startsWith("--"))
+    && commandChildren(args).some((candidate) => candidate.path.length > args.length)
+  ) {
     return { text: commandHelp(args), json: false };
   }
   return { result: await domainCommand(args, options), json: options.json };
@@ -51,11 +54,18 @@ async function status(options: GlobalOptions): Promise<unknown> {
   try {
     const server = await connection.initialize();
     const tools = await listTools(connection);
+    const availableTools = tools.map((tool) => String(tool.name)).sort();
+    const unavailableTools = EXPECTED_TOOL_NAMES.filter((name) => !availableTools.includes(name));
+    const permissionMode = permissionModeFromServer(server);
     return {
       running: true,
       discovery: { path: discoveryPath, app: discovery.app, pid: discovery.pid, host: discovery.host, port: discovery.port, mode: discovery.mode },
       server,
       toolCount: tools.length,
+      permissionMode,
+      availableTools,
+      unavailableTools,
+      guidance: capabilityGuidance(permissionMode, unavailableTools),
     };
   } finally {
     connection.close();
@@ -112,9 +122,47 @@ async function listTools(connection: McpConnection): Promise<any[]> {
 }
 
 async function findTool(connection: McpConnection, name: string): Promise<any> {
-  const tool = (await listTools(connection)).find((candidate) => candidate.name === name);
-  if (!tool) throw new NavopError("tool_not_found", `Navop tool is not exposed: ${name}`);
+  const tools = await listTools(connection);
+  const tool = tools.find((candidate) => candidate.name === name);
+  if (!tool) {
+    throw new NavopError(
+      "tool_not_found",
+      `Navop tool is not exposed: ${name}. Enable the corresponding group in Navop Tool Exposure settings and open the relevant connection/session, then retry discovery.`,
+      {
+        requiredTool: name,
+        availableTools: tools.map((candidate) => candidate.name).sort(),
+        actions: [
+          "Enable MCP Server in Navop Settings > General > MCP",
+          "Enable the corresponding group in Navop Settings > General > Tool Exposure",
+          "Open the required SSH, terminal, database, Redis, MongoDB, or SFTP connection/session",
+          "Run navop status --json and navop tool list --json again",
+        ],
+      },
+    );
+  }
   return tool;
+}
+
+function permissionModeFromServer(server: any): "deny" | "ask" | "allow" | "unknown" {
+  const instructions = typeof server?.instructions === "string" ? server.instructions : "";
+  const match = instructions.match(/permission_mode=(deny|ask|allow)/);
+  return (match?.[1] as "deny" | "ask" | "allow" | undefined) ?? "unknown";
+}
+
+function capabilityGuidance(permissionMode: string, unavailableTools: string[]): string[] {
+  const guidance = [
+    "Tool availability depends on Navop Tool Exposure settings and active connection sessions.",
+  ];
+  if (unavailableTools.length > 0) {
+    guidance.push(
+      "For unavailable tools, enable the corresponding tool group and open the required connection/session in Navop.",
+    );
+  }
+  if (permissionMode === "deny") guidance.push("Mutating tools are denied by the current permission mode.");
+  else if (permissionMode === "ask") guidance.push("Mutating tools require approval in Navop; never bypass a rejection.");
+  else if (permissionMode === "allow") guidance.push("Mutating tools run automatically; confirm user intent before destructive actions.");
+  else guidance.push("Inspect the Navop MCP permission profile before attempting mutations.");
+  return guidance;
 }
 
 async function callTool(connection: McpConnection, name: string, args: Record<string, unknown>): Promise<unknown> {
@@ -155,13 +203,34 @@ function hasHelp(args: string[]): boolean {
 }
 
 async function expandConvenienceArguments(tool: string, args: string[]): Promise<string[]> {
-  if (tool !== "sftp.write") return args;
-  const stdinIndex = args.indexOf("--stdin");
-  const fileIndex = args.indexOf("--content-file");
+  let expanded = args;
+  if (tool.startsWith("db.") || tool.startsWith("sftp.")) {
+    expanded = replaceFlagAlias(expanded, "--connection", "--target");
+  }
+  if (tool.startsWith("redis.")) {
+    expanded = replaceFlagAlias(expanded, "--connection-id", "--target");
+  }
+  if (tool.startsWith("mongo.")) {
+    expanded = replaceFlagAlias(expanded, "--connection-id", "--target");
+  }
+  if (tool !== "sftp.write") return expanded;
+  const stdinIndex = expanded.indexOf("--stdin");
+  const fileIndex = expanded.indexOf("--content-file");
   if (stdinIndex >= 0 && fileIndex >= 0) throw new NavopError("invalid_arguments", "use only one of --stdin or --content-file");
-  if (stdinIndex >= 0) return replaceWithContent(args, stdinIndex, 1, await readStdin());
-  if (fileIndex >= 0) return replaceWithContent(args, fileIndex, 2, await readFile(requiredValue(args, fileIndex + 1, "--content-file")));
-  return args;
+  if (stdinIndex >= 0) return replaceWithContent(expanded, stdinIndex, 1, await readStdin());
+  if (fileIndex >= 0) return replaceWithContent(expanded, fileIndex, 2, await readFile(requiredValue(expanded, fileIndex + 1, "--content-file")));
+  return expanded;
+}
+
+function replaceFlagAlias(args: string[], alias: string, canonical: string): string[] {
+  const aliasIndex = args.indexOf(alias);
+  if (aliasIndex < 0) return args;
+  if (args.includes(canonical)) {
+    throw new NavopError("invalid_arguments", `use only one of ${alias} or ${canonical}`);
+  }
+  const next = [...args];
+  next[aliasIndex] = canonical;
+  return next;
 }
 
 function replaceWithContent(args: string[], index: number, count: number, content: string | Buffer): string[] {

@@ -5,12 +5,13 @@ Domain CLI, MCP stdio bridge, and Agent Skill for a running Navop desktop applic
 ## Executables
 
 ```bash
-npx -y @navop/mcp@0.1.1 --help
-npx -y @navop/mcp@0.1.1 status --json
-npx -y @navop/mcp@0.1.1 ssh exec --target <session> --command 'uname -a' --json
-npx -y @navop/mcp@0.1.1 db query --connection <id> --sql 'SELECT 1' --json
-npx -y @navop/mcp@0.1.1 redis get --connection-id <id> --key <key> --json
-npx -y @navop/mcp@0.1.1 sftp read --connection <id> --path /etc/hosts --json
+npx -y @navop/mcp@0.1.2 --help
+npx -y @navop/mcp@0.1.2 status --json
+npx -y @navop/mcp@0.1.2 ssh exec --target <session> --command 'uname -a' --json
+npx -y @navop/mcp@0.1.2 db query --connection <id> --sql 'SELECT 1' --json
+npx -y @navop/mcp@0.1.2 redis get --connection-id <id> --key <key> --json
+npx -y @navop/mcp@0.1.2 mongo find --connection-id <id> --database app --collection users --filter '{"active":true}' --json
+npx -y @navop/mcp@0.1.2 sftp read --connection <id> --path /etc/hosts --json
 ```
 
 `navop` is the domain CLI. `navop-mcp` is the pure stdio bridge used by MCP clients. `navop mcp` invokes the same bridge behavior through the primary executable.
@@ -23,6 +24,7 @@ navop ssh
 navop terminal
 navop db
 navop redis
+navop mongo
 navop sftp
 navop connections
 navop workspace
@@ -49,7 +51,7 @@ navop tool call <tool> --arguments '<json-object>' --json
   "mcpServers": {
     "navop": {
       "command": "npx",
-      "args": ["-y", "@navop/mcp@0.1.1", "mcp", "--discovery", "/path/to/navop/public-mcp.json"]
+      "args": ["-y", "@navop/mcp@0.1.2", "mcp", "--discovery", "/path/to/navop/public-mcp.json"]
     }
   }
 }
