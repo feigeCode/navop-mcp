@@ -3,26 +3,14 @@
 ## Discover a target
 
 1. Run `navop status --json`.
-2. Run `navop connections list --json` or `navop connections sessions --json`.
-3. Narrow candidates with `connections find/show`.
-4. Use the returned id in the domain command.
+2. Run `navop tool list --json` and identify a host-provided read-only resource discovery tool.
+3. Run `navop tool schema <tool-name> --json`.
+4. Call that discovery tool and use only an id returned by Navop.
 
 Never infer an id from a title, hostname, tab label, or earlier conversation.
 
-## SSH automation
+## Choose an operation
 
-Use `navop ssh exec` for Agent-owned remote automation. It runs through Navop's isolated SSH execution path and returns structured output. Use `navop terminal exec` only when the command must use the visible terminal's live cwd, shell environment, aliases, or activated environment.
+Use the live tool annotations and description returned by `tools/list`. Prefer a tool with `readOnlyHint=true` before a mutating tool. Inspect the live input schema instead of relying on remembered flags or examples.
 
-If `ssh exec` returns a command id after a bounded wait, use `ssh command poll` and `ssh command output`. Do not execute the command again just to retrieve output.
-
-## Database work
-
-Use `db schema/tables/describe/sample/query` before `db exec`. `db query` is read-only. `db exec` may mutate state and remains subject to Navop approval.
-
-## Redis work
-
-Discover the actual Redis connection with `redis connections`. Prefer `keys/get` before `set/command`. Treat `redis command` as potentially mutating unless the command is known to be read-only.
-
-## Remote files
-
-Use `sftp stat/read` before `write/upload/download`. Collision policy defaults to fail. Use overwrite only after the user has authorized replacement or the task clearly requires it.
+If a call returns a command, job, or continuation id, discover the matching status/output methods from `tool list`; do not rerun the original mutation merely to retrieve its result.

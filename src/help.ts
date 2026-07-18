@@ -13,6 +13,9 @@ const DOMAINS: Array<[string, string]> = [
   ["functions", "List and call Navop internal functions"],
   ["skill", "Print or install the Navop Agent Skill"],
   ["tool", "Access a low-level MCP tool"],
+  ["tools", "List tools reported by the running Navop host"],
+  ["schema", "Read one live host tool schema"],
+  ["call", "Call one live host tool"],
   ["mcp", "Run the MCP stdio bridge"],
 ];
 

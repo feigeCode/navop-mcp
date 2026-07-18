@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 import { buildToolArguments } from "./arguments.js";
-import { commandChildren, EXPECTED_TOOL_NAMES, resolveDomainCommand } from "./catalog.js";
+import { commandChildren, resolveDomainCommand } from "./catalog.js";
 import { McpConnection } from "./connection.js";
 import { readDiscovery, resolveDiscoveryPath } from "./discovery.js";
 import { NavopError } from "./errors.js";
@@ -19,6 +19,9 @@ export async function runCli(argv: string[]): Promise<{ result?: unknown; text?:
   if (args.length === 0) return { text: rootHelp(), json: false };
   if (hasHelp(args)) return { text: await helpFor(args, options), json: false };
   if (args[0] === "status") return { result: await status(options), json: options.json };
+  if (args[0] === "tools") return { result: await toolCommand(["list", ...args.slice(1)], options), json: options.json };
+  if (args[0] === "schema") return { result: await toolCommand(["schema", ...args.slice(1)], options), json: options.json };
+  if (args[0] === "call") return { result: await toolCommand(["call", ...args.slice(1)], options), json: options.json };
   if (args[0] === "skill") return { result: await skillCommand(args.slice(1)), json: options.json };
   if (args[0] === "tool") return { result: await toolCommand(args.slice(1), options), json: options.json };
   if (args[0] === "mcp") throw new NavopError("invalid_arguments", "navop mcp must be started as a stdio bridge");
@@ -55,8 +58,10 @@ async function status(options: GlobalOptions): Promise<unknown> {
     const server = await connection.initialize();
     const tools = await listTools(connection);
     const availableTools = tools.map((tool) => String(tool.name)).sort();
-    const unavailableTools = EXPECTED_TOOL_NAMES.filter((name) => !availableTools.includes(name));
+    const runtime = await runtimeStatus(connection, tools);
     const permissionMode = permissionModeFromServer(server);
+    const toolGroups = Array.isArray(runtime?.toolGroups) ? runtime.toolGroups : [];
+    const disabledToolGroups = toolGroups.filter((group: any) => group?.enabled === false);
     return {
       running: true,
       discovery: { path: discoveryPath, app: discovery.app, pid: discovery.pid, host: discovery.host, port: discovery.port, mode: discovery.mode },
@@ -64,8 +69,10 @@ async function status(options: GlobalOptions): Promise<unknown> {
       toolCount: tools.length,
       permissionMode,
       availableTools,
-      unavailableTools,
-      guidance: capabilityGuidance(permissionMode, unavailableTools),
+      runtime: runtime ?? null,
+      toolGroups,
+      disabledToolGroups,
+      guidance: capabilityGuidance(permissionMode, disabledToolGroups),
     };
   } finally {
     connection.close();
@@ -125,16 +132,26 @@ async function findTool(connection: McpConnection, name: string): Promise<any> {
   const tools = await listTools(connection);
   const tool = tools.find((candidate) => candidate.name === name);
   if (!tool) {
+    const runtime = await runtimeStatus(connection, tools);
+    const groupId = toolGroupForName(name);
+    const group = Array.isArray(runtime?.toolGroups)
+      ? runtime.toolGroups.find((candidate: any) => candidate?.id === groupId)
+      : undefined;
+    const groupAction = group?.enabled === false
+      ? `Enable the ${groupId} tool group in ${runtime?.settingsPath ?? "Navop Settings > General > Tool Exposure"}`
+      : `Inspect ${runtime?.settingsPath ?? "Navop Settings > General > Tool Exposure"} and the required connection/session`;
     throw new NavopError(
       "tool_not_found",
-      `Navop tool is not exposed: ${name}. Enable the corresponding group in Navop Tool Exposure settings and open the relevant connection/session, then retry discovery.`,
+      `Navop tool is not available from the running host: ${name}. ${groupAction}, then retry discovery.`,
       {
         requiredTool: name,
+        requiredToolGroup: groupId,
+        toolGroup: group ?? null,
         availableTools: tools.map((candidate) => candidate.name).sort(),
         actions: [
           "Enable MCP Server in Navop Settings > General > MCP",
-          "Enable the corresponding group in Navop Settings > General > Tool Exposure",
-          "Open the required SSH, terminal, database, Redis, MongoDB, or SFTP connection/session",
+          groupAction,
+          "Open the connection or session required by the requested tool",
           "Run navop status --json and navop tool list --json again",
         ],
       },
@@ -143,19 +160,40 @@ async function findTool(connection: McpConnection, name: string): Promise<any> {
   return tool;
 }
 
+async function runtimeStatus(connection: McpConnection, tools: any[]): Promise<any | undefined> {
+  if (!tools.some((tool) => tool?.name === "navop.runtime_status")) return undefined;
+  const result = await connection.request("tools/call", {
+    name: "navop.runtime_status",
+    arguments: {},
+  });
+  if (result?.isError) return undefined;
+  return result?.structuredContent ?? result;
+}
+
+function toolGroupForName(name: string): string {
+  const prefix = name.split(".", 1)[0] ?? name;
+  if (prefix === "ssh") return "ssh";
+  if (prefix === "terminal") return "terminal_exec";
+  if (prefix === "db") return "database";
+  if (prefix === "mongo" || prefix === "mongodb") return "mongodb";
+  if (prefix === "internal_functions" || prefix === "functions") return "internal_functions";
+  return prefix;
+}
+
 function permissionModeFromServer(server: any): "deny" | "ask" | "allow" | "unknown" {
   const instructions = typeof server?.instructions === "string" ? server.instructions : "";
   const match = instructions.match(/permission_mode=(deny|ask|allow)/);
   return (match?.[1] as "deny" | "ask" | "allow" | undefined) ?? "unknown";
 }
 
-function capabilityGuidance(permissionMode: string, unavailableTools: string[]): string[] {
+function capabilityGuidance(permissionMode: string, disabledToolGroups: any[]): string[] {
   const guidance = [
-    "Tool availability depends on Navop Tool Exposure settings and active connection sessions.",
+    "Tool names and schemas come from the running Navop host through tools/list; the CLI and Skill are not capability authorities.",
+    "Tool availability also depends on Navop Tool Exposure settings and active connection sessions.",
   ];
-  if (unavailableTools.length > 0) {
+  if (disabledToolGroups.length > 0) {
     guidance.push(
-      "For unavailable tools, enable the corresponding tool group and open the required connection/session in Navop.",
+      `Disabled host tool groups: ${disabledToolGroups.map((group: any) => group.id).join(", ")}. Enable only the groups needed by the user.`,
     );
   }
   if (permissionMode === "deny") guidance.push("Mutating tools are denied by the current permission mode.");

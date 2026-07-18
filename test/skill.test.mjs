@@ -10,11 +10,15 @@ test("skill has stable frontmatter and installs without silent overwrite", async
   const text = await printSkill();
   assert.match(text, /^---\nname: navop\n/);
   assert.match(text, /Agent.*--json/s);
-  assert.match(text, /navop ssh exec/);
-  assert.match(text, /navop db query/);
-  assert.match(text, /navop redis get/);
-  assert.match(text, /navop sftp read/);
-  assert.doesNotMatch(text, /navop call /);
+  assert.match(text, /navop tool list --json/);
+  assert.match(text, /navop tool schema <tool-name> --json/);
+  assert.match(text, /navop tool call <tool-name>/);
+  assert.match(text, /tools\/list.*authoritative/s);
+  assert.doesNotMatch(text, /navop ssh exec/);
+  assert.doesNotMatch(text, /navop db query/);
+  assert.doesNotMatch(text, /navop redis get/);
+  assert.doesNotMatch(text, /navop mongo find/);
+  assert.doesNotMatch(text, /navop sftp read/);
 
   const home = await mkdtemp(path.join(os.tmpdir(), "navop-skill-"));
   const installed = await installSkill({ target: "codex", scope: "user", home, cwd: home, force: false });

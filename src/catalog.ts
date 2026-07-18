@@ -68,8 +68,6 @@ export const DOMAIN_COMMANDS: DomainCommand[] = [
   command("functions call", "internal_functions.call", "Call a Navop internal function"),
 ];
 
-export const EXPECTED_TOOL_NAMES = [...new Set(DOMAIN_COMMANDS.map((command) => command.tool))];
-
 export function resolveDomainCommand(tokens: string[]): DomainCommand {
   const matches = DOMAIN_COMMANDS.filter((candidate) => prefixMatches(tokens, candidate.path));
   const exact = matches.find((candidate) => candidate.path.length === tokens.length);

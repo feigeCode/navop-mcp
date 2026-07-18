@@ -137,9 +137,12 @@ test("domain CLI reports an unexposed tool without falling back or guessing", as
   server.close();
 });
 
-test("status reports live tools, unavailable commands, guidance, and permission mode", async () => {
+test("status reports live host tools and authoritative runtime tool groups", async () => {
   const token = "2".repeat(64);
-  const server = net.createServer((socket) => serve(socket, token, [], [sshExecTool()]));
+  const server = net.createServer((socket) => serve(socket, token, [], [
+    sshExecTool(),
+    { name: "navop.runtime_status", description: "Runtime status", inputSchema: { type: "object", properties: {} } },
+  ]));
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   const root = await mkdtemp(path.join(os.tmpdir(), "navop-status-cli-"));
@@ -150,9 +153,11 @@ test("status reports live tools, unavailable commands, guidance, and permission 
   assert.equal(result.code, 0);
   const status = JSON.parse(result.stdout).result;
   assert.equal(status.permissionMode, "allow");
-  assert.deepEqual(status.availableTools, ["ssh.exec"]);
-  assert.ok(status.unavailableTools.includes("db.query"));
-  assert.ok(status.guidance.some((line) => line.includes("automatically")));
+  assert.deepEqual(status.availableTools, ["navop.runtime_status", "ssh.exec"]);
+  assert.deepEqual(status.disabledToolGroups, [{ id: "database", enabled: false }]);
+  assert.equal(status.runtime.toolDiscovery.source, "tools/list");
+  assert.equal(status.runtime.toolDiscovery.dynamic, true);
+  assert.ok(status.guidance.some((line) => line.includes("running Navop host")));
   server.close();
 });
 
@@ -191,7 +196,22 @@ function serve(socket, token, calls, tools = [sshExecTool()]) {
       if (message.method === "tools/list") respond(socket, message.id, { tools });
       if (message.method === "tools/call") {
         calls.push(message.params);
-        respond(socket, message.id, { structuredContent: { accepted: true }, isError: false });
+        if (message.params.name === "navop.runtime_status") {
+          respond(socket, message.id, {
+            structuredContent: {
+              contractVersion: 1,
+              toolDiscovery: { source: "tools/list", schemaSource: "tools/list", dynamic: true },
+              settingsPath: "Settings > General > Tool Exposure",
+              toolGroups: [
+                { id: "ssh", enabled: true },
+                { id: "database", enabled: false },
+              ],
+            },
+            isError: false,
+          });
+        } else {
+          respond(socket, message.id, { structuredContent: { accepted: true }, isError: false });
+        }
       }
     }
   });

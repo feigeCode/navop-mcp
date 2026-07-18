@@ -7,11 +7,9 @@ Domain CLI, MCP stdio bridge, and Agent Skill for a running Navop desktop applic
 ```bash
 npx -y @navop/mcp@0.1.2 --help
 npx -y @navop/mcp@0.1.2 status --json
-npx -y @navop/mcp@0.1.2 ssh exec --target <session> --command 'uname -a' --json
-npx -y @navop/mcp@0.1.2 db query --connection <id> --sql 'SELECT 1' --json
-npx -y @navop/mcp@0.1.2 redis get --connection-id <id> --key <key> --json
-npx -y @navop/mcp@0.1.2 mongo find --connection-id <id> --database app --collection users --filter '{"active":true}' --json
-npx -y @navop/mcp@0.1.2 sftp read --connection <id> --path /etc/hosts --json
+npx -y @navop/mcp@0.1.2 tools --json
+npx -y @navop/mcp@0.1.2 schema <tool> --json
+npx -y @navop/mcp@0.1.2 call <tool> --arguments '<json-object>' --json
 ```
 
 `navop` is the domain CLI. `navop-mcp` is the pure stdio bridge used by MCP clients. `navop mcp` invokes the same bridge behavior through the primary executable.
@@ -34,7 +32,9 @@ navop tool
 navop mcp
 ```
 
-Domain command flags are validated against the live MCP tool schema exposed by Navop. The TypeScript package does not implement SSH, terminal, database, Redis, or SFTP behavior.
+The running Navop host is the authority for tool names, descriptions, annotations, schemas, Tool Exposure groups, permissions, and sessions. The package reads `tools/list` and the host-provided `navop.runtime_status`; it does not carry a versioned copy of the complete host tool catalog. Domain command flags are validated against the live MCP schema. The TypeScript package does not implement terminal, database, Redis, MongoDB, SSH/SFTP, or other Navop business behavior.
+
+The exact npm version in generated MCP configuration is the external client/stdio launcher version. It is not the version of the host tool registry. Navop may add or change host tools without publishing this package, as long as the bridge and compatibility contract remain supported.
 
 Use the low-level `navop tool` namespace only for tools that do not yet have a domain command:
 
@@ -42,6 +42,14 @@ Use the low-level `navop tool` namespace only for tools that do not yet have a d
 navop tool list --json
 navop tool schema <tool> --json
 navop tool call <tool> --arguments '<json-object>' --json
+```
+
+Compatibility aliases provide the same host-driven operations:
+
+```bash
+navop tools --json
+navop schema <tool> --json
+navop call <tool> --arguments '<json-object>' --json
 ```
 
 ## MCP configuration

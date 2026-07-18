@@ -36,12 +36,13 @@ test("incomplete domains show help without requiring Navop", () => {
   assert.match(output, /diagnostics/);
 });
 
-test("removed top-level raw tool commands are not accepted", () => {
+test("top-level raw tool compatibility aliases are recognized", () => {
   const result = spawnSync(process.execPath, [path.resolve("dist/navop.js"), "tools"], {
     encoding: "utf8",
   });
-  assert.equal(result.status, 2);
-  assert.match(result.stderr, /unknown command/);
+  assert.equal(result.status, 3);
+  assert.doesNotMatch(result.stderr, /unknown command/);
+  assert.match(result.stderr, /Navop MCP discovery is unavailable/);
 });
 
 test("domain commands map to actual Navop MCP tool names", () => {
