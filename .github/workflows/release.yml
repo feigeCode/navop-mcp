@@ -30,5 +30,3 @@ jobs:
           test "$RELEASE_TAG" = "v$PACKAGE_VERSION"
       - name: Publish package
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
