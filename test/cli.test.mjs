@@ -14,9 +14,17 @@ test("navop --help exposes the domain command tree", () => {
   assert.equal(output, rootHelp());
 });
 
-test("the package exposes independent domain CLI and bridge executables", () => {
+test("the package exposes an npm-default launcher and independent CLI executables", () => {
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
-  assert.deepEqual(packageJson.bin, { navop: "dist/navop.js", "navop-mcp": "dist/navop-mcp.js" });
+  assert.deepEqual(packageJson.bin, {
+    mcp: "dist/navop.js",
+    navop: "dist/navop.js",
+    "navop-mcp": "dist/navop-mcp.js",
+  });
+  const cliVersion = execFileSync(process.execPath, [path.resolve("dist/navop.js"), "--version"], { encoding: "utf8" });
+  const bridgeVersion = execFileSync(process.execPath, [path.resolve("dist/navop-mcp.js"), "--version"], { encoding: "utf8" });
+  assert.equal(cliVersion.trim(), packageJson.version);
+  assert.equal(bridgeVersion.trim(), packageJson.version);
   const output = execFileSync(process.execPath, [path.resolve("dist/navop-mcp.js"), "--help"], { encoding: "utf8" });
   assert.equal(output, "Usage: navop-mcp [--discovery <path>]\n");
 });

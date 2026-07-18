@@ -2,6 +2,7 @@
 import { runBridge } from "./bridge.js";
 import { readDiscovery, resolveDiscoveryPath } from "./discovery.js";
 import { exitCode, NavopError } from "./errors.js";
+import { PACKAGE_VERSION } from "./version.js";
 
 async function main(argv: string[]): Promise<void> {
   if (argv.includes("--help") || argv.includes("-h")) {
@@ -9,7 +10,7 @@ async function main(argv: string[]): Promise<void> {
     return;
   }
   if (argv.includes("--version") || argv.includes("-V")) {
-    process.stdout.write("0.1.0\n");
+    process.stdout.write(`${PACKAGE_VERSION}\n`);
     return;
   }
   let discovery: string | undefined;

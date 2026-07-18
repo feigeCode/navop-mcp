@@ -5,10 +5,11 @@ import { exitCode } from "./errors.js";
 import { commandHelp, rootHelp } from "./help.js";
 import { failure, success } from "./output.js";
 import { runCli } from "./runner.js";
+import { PACKAGE_VERSION } from "./version.js";
 
 async function main(argv: string[]): Promise<void> {
   if (argv.includes("--version") || argv.includes("-V")) {
-    process.stdout.write("0.1.0\n");
+    process.stdout.write(`${PACKAGE_VERSION}\n`);
     return;
   }
   if (argv[0] === "mcp") {

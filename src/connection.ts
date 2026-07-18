@@ -2,6 +2,7 @@ import net from "node:net";
 
 import type { DiscoveryDocument } from "./discovery.js";
 import { NavopError } from "./errors.js";
+import { PACKAGE_VERSION } from "./version.js";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
@@ -38,7 +39,7 @@ export class McpConnection {
     const result = await this.request("initialize", {
       protocolVersion: "2025-11-25",
       capabilities: {},
-      clientInfo: { name: "@navop/mcp", version: "0.1.0" },
+      clientInfo: { name: "@navop/mcp", version: PACKAGE_VERSION },
     });
     this.notify("notifications/initialized");
     return result;

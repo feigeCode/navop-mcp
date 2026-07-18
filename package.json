@@ -1,9 +1,13 @@
 {
   "name": "@navop/mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Navop MCP bridge, CLI, and agent Skill",
   "type": "module",
-  "bin": { "navop": "dist/navop.js", "navop-mcp": "dist/navop-mcp.js" },
+  "bin": {
+    "mcp": "dist/navop.js",
+    "navop": "dist/navop.js",
+    "navop-mcp": "dist/navop-mcp.js"
+  },
   "files": ["dist", "skills", "README.md"],
   "engines": { "node": ">=20" },
   "publishConfig": { "access": "public" },
