@@ -235,7 +235,7 @@ function respond(socket, id, result) {
 
 function run(args) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [path.resolve("dist/navop.js"), ...args]);
+    const child = spawn(process.execPath, [path.resolve("packages/cli/dist/navop.js"), ...args]);
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => { stdout += chunk; });

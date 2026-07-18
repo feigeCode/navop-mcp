@@ -1,34 +1,21 @@
 {
-  "name": "@navop/mcp",
-  "version": "0.1.2",
-  "description": "Navop MCP bridge, CLI, and agent Skill",
+  "name": "navop-js",
+  "version": "0.2.0",
+  "private": true,
   "type": "module",
-  "bin": {
-    "mcp": "dist/navop.js",
-    "navop": "dist/navop.js",
-    "navop-mcp": "dist/navop-mcp.js"
-  },
-  "files": ["dist", "skills", "README.md"],
+  "workspaces": ["packages/*"],
   "engines": { "node": ">=20" },
-  "publishConfig": { "access": "public" },
   "scripts": {
-    "build": "tsup src/navop.ts src/navop-mcp.ts src/api.ts --format esm --platform node --target node20 --clean --sourcemap",
+    "build": "npm run build --workspace @navop/client && npm run build --workspace @navop/cli && npm run build --workspace @navop/mcp",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test test/*.test.mjs",
-    "check": "npm run typecheck && npm test",
-    "prepack": "npm run check"
+    "check": "npm run build && npm run typecheck && node --test test/*.test.mjs",
+    "pack:dry-run": "npm pack --dry-run --workspace @navop/client && npm pack --dry-run --workspace @navop/cli && npm pack --dry-run --workspace @navop/mcp"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3"
   },
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/feigeCode/navop-mcp.git"
-  },
-  "homepage": "https://github.com/feigeCode/navop-mcp",
-  "bugs": { "url": "https://github.com/feigeCode/navop-mcp/issues" },
-  "keywords": ["navop", "mcp", "model-context-protocol", "cli", "skill"]
+  "license": "MIT"
 }

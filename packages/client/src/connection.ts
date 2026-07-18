@@ -39,7 +39,7 @@ export class McpConnection {
     const result = await this.request("initialize", {
       protocolVersion: "2025-11-25",
       capabilities: {},
-      clientInfo: { name: "@navop/mcp", version: PACKAGE_VERSION },
+      clientInfo: { name: "@navop/client", version: PACKAGE_VERSION },
     });
     this.notify("notifications/initialized");
     return result;

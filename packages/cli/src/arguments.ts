@@ -1,4 +1,4 @@
-import { NavopError } from "./errors.js";
+import { NavopError } from "@navop/client";
 
 interface JsonSchema {
   type?: string | string[];

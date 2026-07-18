@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import net from "node:net";
 import test from "node:test";
 
-import { McpConnection } from "../dist/api.js";
+import { McpConnection } from "../packages/client/dist/index.js";
 
 test("MCP client handles partial reads and multiple messages in one chunk", async () => {
   const server = net.createServer((socket) => {

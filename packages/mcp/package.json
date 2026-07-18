@@ -1,0 +1,19 @@
+{
+  "name": "@navop/mcp",
+  "version": "0.2.0",
+  "description": "MCP stdio bridge for a running Navop desktop application",
+  "type": "module",
+  "bin": { "mcp": "dist/navop-mcp.js", "navop-mcp": "dist/navop-mcp.js" },
+  "exports": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=20" },
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "build": "tsup src/navop-mcp.ts src/index.ts --format esm --platform node --target node20 --clean --sourcemap --dts"
+  },
+  "dependencies": { "@navop/client": "0.2.0" },
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/feigeCode/navop-mcp.git", "directory": "packages/mcp" },
+  "keywords": ["navop", "mcp", "model-context-protocol", "stdio"]
+}

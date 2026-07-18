@@ -12,11 +12,10 @@ const DOMAINS: Array<[string, string]> = [
   ["workspace", "Inspect Navop workspaces"],
   ["functions", "List and call Navop internal functions"],
   ["skill", "Print or install the Navop Agent Skill"],
-  ["tool", "Access a low-level MCP tool"],
+  ["tool", "Access a low-level Navop host tool"],
   ["tools", "List tools reported by the running Navop host"],
   ["schema", "Read one live host tool schema"],
   ["call", "Call one live host tool"],
-  ["mcp", "Run the MCP stdio bridge"],
 ];
 
 export function rootHelp(): string {
@@ -46,7 +45,6 @@ function specialHelp(path: string[]): string | undefined {
     status: "Usage: navop status [--json] [--discovery <path>] [--timeout <ms>]\n",
     skill: "Usage: navop skill print|install [--target codex|agents] [--scope user|project] [--force]\n",
     tool: "Usage: navop tool list|schema <tool>|call <tool> [--arguments <json>|--file <path>|--stdin]\n",
-    mcp: "Usage: navop mcp [--discovery <path>]\n",
   };
   return values[key];
 }

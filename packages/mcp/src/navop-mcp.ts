@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { runBridge } from "./bridge.js";
-import { readDiscovery, resolveDiscoveryPath } from "./discovery.js";
-import { exitCode, NavopError } from "./errors.js";
+import { exitCode, NavopError, readDiscovery, resolveDiscoveryPath } from "@navop/client";
 import { PACKAGE_VERSION } from "./version.js";
 
 async function main(argv: string[]): Promise<void> {

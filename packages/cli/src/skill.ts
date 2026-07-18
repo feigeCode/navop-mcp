@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { NavopError } from "./errors.js";
+import { NavopError } from "@navop/client";
 
 export interface SkillInstallOptions {
   target: "codex" | "agents";

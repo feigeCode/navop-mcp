@@ -4,45 +4,50 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { buildToolArguments, resolveDomainCommand, rootHelp } from "../dist/api.js";
+import { buildToolArguments, resolveDomainCommand, rootHelp } from "../packages/cli/dist/index.js";
 
 test("navop --help exposes the domain command tree", () => {
-  const output = execFileSync(process.execPath, [path.resolve("dist/navop.js"), "--help"], { encoding: "utf8" });
-  for (const command of ["ssh", "terminal", "db", "redis", "sftp", "connections", "functions", "skill", "tool", "mcp"]) {
+  const output = execFileSync(process.execPath, [path.resolve("packages/cli/dist/navop.js"), "--help"], { encoding: "utf8" });
+  for (const command of ["ssh", "terminal", "db", "redis", "sftp", "connections", "functions", "skill", "tool"]) {
     assert.match(output, new RegExp(`\\b${command}\\b`));
   }
   assert.equal(output, rootHelp());
 });
 
-test("the package exposes an npm-default launcher and independent CLI executables", () => {
-  const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
-  assert.deepEqual(packageJson.bin, {
-    mcp: "dist/navop.js",
-    navop: "dist/navop.js",
-    "navop-mcp": "dist/navop-mcp.js",
-  });
-  const cliVersion = execFileSync(process.execPath, [path.resolve("dist/navop.js"), "--version"], { encoding: "utf8" });
-  const bridgeVersion = execFileSync(process.execPath, [path.resolve("dist/navop-mcp.js"), "--version"], { encoding: "utf8" });
-  assert.equal(cliVersion.trim(), packageJson.version);
-  assert.equal(bridgeVersion.trim(), packageJson.version);
-  const output = execFileSync(process.execPath, [path.resolve("dist/navop-mcp.js"), "--help"], { encoding: "utf8" });
+test("the workspace exposes independent CLI and MCP packages", () => {
+  const cliPackage = JSON.parse(readFileSync("packages/cli/package.json", "utf8"));
+  const mcpPackage = JSON.parse(readFileSync("packages/mcp/package.json", "utf8"));
+  const clientPackage = JSON.parse(readFileSync("packages/client/package.json", "utf8"));
+  assert.deepEqual(cliPackage.bin, { navop: "dist/navop.js" });
+  assert.deepEqual(mcpPackage.bin, { mcp: "dist/navop-mcp.js", "navop-mcp": "dist/navop-mcp.js" });
+  assert.equal(clientPackage.bin, undefined);
+  assert.equal(cliPackage.bin.mcp, undefined);
+  assert.equal(mcpPackage.bin.navop, undefined);
+  assert.ok(cliPackage.files.includes("skills"));
+  assert.equal(cliPackage.dependencies["@navop/client"], clientPackage.version);
+  assert.equal(mcpPackage.dependencies["@navop/client"], clientPackage.version);
+  const cliVersion = execFileSync(process.execPath, [path.resolve("packages/cli/dist/navop.js"), "--version"], { encoding: "utf8" });
+  const bridgeVersion = execFileSync(process.execPath, [path.resolve("packages/mcp/dist/navop-mcp.js"), "--version"], { encoding: "utf8" });
+  assert.equal(cliVersion.trim(), cliPackage.version);
+  assert.equal(bridgeVersion.trim(), mcpPackage.version);
+  const output = execFileSync(process.execPath, [path.resolve("packages/mcp/dist/navop-mcp.js"), "--help"], { encoding: "utf8" });
   assert.equal(output, "Usage: navop-mcp [--discovery <path>]\n");
 });
 
 test("incomplete domains show help without requiring Navop", () => {
-  const output = execFileSync(process.execPath, [path.resolve("dist/navop.js"), "ssh"], { encoding: "utf8" });
+  const output = execFileSync(process.execPath, [path.resolve("packages/cli/dist/navop.js"), "ssh"], { encoding: "utf8" });
   assert.match(output, /Usage: navop ssh <command>/);
   assert.match(output, /exec/);
   assert.match(output, /diagnostics/);
 });
 
 test("top-level raw tool compatibility aliases are recognized", () => {
-  const result = spawnSync(process.execPath, [path.resolve("dist/navop.js"), "tools"], {
+  const result = spawnSync(process.execPath, [path.resolve("packages/cli/dist/navop.js"), "tools"], {
     encoding: "utf8",
   });
   assert.ok([0, 3].includes(result.status), `unexpected exit status: ${result.status}`);
   assert.doesNotMatch(result.stderr, /unknown command/);
-  if (result.status === 3) assert.match(result.stderr, /Navop MCP discovery is unavailable/);
+  if (result.status === 3) assert.match(result.stderr, /Cannot connect to Navop MCP|Navop MCP discovery is unavailable/);
 });
 
 test("domain commands map to actual Navop MCP tool names", () => {

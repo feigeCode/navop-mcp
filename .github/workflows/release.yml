@@ -22,11 +22,16 @@ jobs:
       - run: npm install --global npm@11
       - run: npm ci
       - run: npm run check
-      - name: Verify release tag matches package version
+      - name: Verify release tag matches workspace package versions
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
-          test "$RELEASE_TAG" = "v$PACKAGE_VERSION"
-      - name: Publish package
-        run: npm publish --access public --provenance
+          test "$RELEASE_TAG" = "v$(node -p "require('./packages/cli/package.json').version")"
+          test "$(node -p "require('./packages/client/package.json').version")" = "$(node -p "require('./packages/cli/package.json').version")"
+          test "$(node -p "require('./packages/mcp/package.json').version")" = "$(node -p "require('./packages/cli/package.json').version")"
+      - name: Publish client
+        run: npm publish --workspace @navop/client --access public --provenance
+      - name: Publish CLI
+        run: npm publish --workspace @navop/cli --access public --provenance
+      - name: Publish MCP bridge
+        run: npm publish --workspace @navop/mcp --access public --provenance

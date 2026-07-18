@@ -1,4 +1,4 @@
-import { NavopError } from "./errors.js";
+import { NavopError } from "@navop/client";
 
 export function success(result: unknown): string {
   return JSON.stringify({ ok: true, result });

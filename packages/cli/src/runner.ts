@@ -2,9 +2,7 @@ import { readFile } from "node:fs/promises";
 
 import { buildToolArguments } from "./arguments.js";
 import { commandChildren, resolveDomainCommand } from "./catalog.js";
-import { McpConnection } from "./connection.js";
-import { readDiscovery, resolveDiscoveryPath } from "./discovery.js";
-import { NavopError } from "./errors.js";
+import { McpConnection, NavopError, readDiscovery, resolveDiscoveryPath } from "@navop/client";
 import { commandHelp, rootHelp, schemaHelp } from "./help.js";
 import { installSkill, printSkill } from "./skill.js";
 
@@ -24,7 +22,6 @@ export async function runCli(argv: string[]): Promise<{ result?: unknown; text?:
   if (args[0] === "call") return { result: await toolCommand(["call", ...args.slice(1)], options), json: options.json };
   if (args[0] === "skill") return { result: await skillCommand(args.slice(1)), json: options.json };
   if (args[0] === "tool") return { result: await toolCommand(args.slice(1), options), json: options.json };
-  if (args[0] === "mcp") throw new NavopError("invalid_arguments", "navop mcp must be started as a stdio bridge");
   if (
     args.every((value) => !value.startsWith("--"))
     && commandChildren(args).some((candidate) => candidate.path.length > args.length)

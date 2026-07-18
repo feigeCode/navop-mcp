@@ -7,7 +7,7 @@ Navop is the only implementation, permission, approval, session, and audit bound
 - Do not retry a mutation after timeout or connection loss; the outcome may be unknown.
 - Do not send arbitrary bytes to a visible terminal.
 - Do not map Agent cancellation to terminal interruption.
-- Use `navop terminal interrupt` only after an explicit user request to interrupt the visible foreground process.
+- Use `navop terminal interrupt ... --json` only after an explicit user request to interrupt the visible foreground process.
 - Do not expose or print the discovery token.
 - Do not guess connection or session identifiers.
 - Do not silently overwrite a Skill or an SFTP/local file target.

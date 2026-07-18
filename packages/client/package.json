@@ -1,0 +1,17 @@
+{
+  "name": "@navop/client",
+  "version": "0.2.0",
+  "description": "Shared authenticated client for a running Navop desktop application",
+  "type": "module",
+  "exports": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=20" },
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --platform node --target node20 --clean --sourcemap --dts"
+  },
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/feigeCode/navop-mcp.git", "directory": "packages/client" },
+  "keywords": ["navop", "client", "mcp", "discovery"]
+}

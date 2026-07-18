@@ -3,7 +3,7 @@ import net from "node:net";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 
-import { runBridge } from "../dist/api.js";
+import { runBridge } from "../packages/mcp/dist/index.js";
 
 test("stdio bridge sends token first and copies bytes in both directions", async () => {
   let received = "";

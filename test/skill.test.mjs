@@ -4,18 +4,26 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { installSkill, printSkill } from "../dist/api.js";
+import { installSkill, printSkill } from "../packages/cli/dist/index.js";
 
 test("skill has stable frontmatter and installs without silent overwrite", async () => {
   const text = await printSkill();
   assert.match(text, /^---\nname: navop\n/);
   assert.match(text, /Agent.*--json/s);
+  assert.match(text, /npm install -g @navop\/cli@latest/);
+  assert.match(text, /navop status --json/);
+  assert.match(text, /navop db query --help/);
   assert.match(text, /navop tool list --json/);
   assert.match(text, /navop tool schema <tool-name> --json/);
   assert.match(text, /navop tool call <tool-name>/);
+  assert.match(text, /npm view @navop\/cli version/);
+  assert.match(text, /npm update -g @navop\/cli/);
+  assert.match(text, /complete Navop tool catalog/);
+  assert.match(text, /reduce repeated tool-definition tokens/);
   assert.match(text, /tools\/list.*authoritative/s);
-  assert.doesNotMatch(text, /navop ssh exec/);
-  assert.doesNotMatch(text, /navop db query/);
+  assert.doesNotMatch(text, /@navop\/mcp@/);
+  assert.doesNotMatch(text, /npx .*@navop\/cli/);
+  assert.doesNotMatch(text, /exact-version/);
   assert.doesNotMatch(text, /navop redis get/);
   assert.doesNotMatch(text, /navop mongo find/);
   assert.doesNotMatch(text, /navop sftp read/);

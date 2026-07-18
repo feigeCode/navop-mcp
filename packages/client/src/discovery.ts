@@ -1,4 +1,4 @@
-import { access, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -6,7 +6,7 @@ import path from "node:path";
 import { NavopError } from "./errors.js";
 
 const TOKEN_PATTERN = /^[0-9a-fA-F]{64}$/;
-const APP_NAMES = new Set(["navop", "onetcli"]);
+const APP_NAME = "navop";
 
 export interface DiscoveryDocument {
   version: number;
@@ -25,16 +25,9 @@ export async function resolveDiscoveryPath(
   env: NodeJS.ProcessEnv = process.env,
   configRoot = defaultConfigRoot(),
 ): Promise<string> {
-  const configured = explicit ?? env.NAVOP_MCP_DISCOVERY ?? env.ONETCLI_MCP_DISCOVERY;
+  const configured = explicit ?? env.NAVOP_MCP_DISCOVERY;
   if (configured) return path.resolve(configured);
-  const candidates = ["navop", "onetcli"].map((app) => path.join(configRoot, app, "public-mcp.json"));
-  for (const candidate of candidates) {
-    try {
-      await access(candidate);
-      return candidate;
-    } catch {}
-  }
-  return candidates[0]!;
+  return path.join(configRoot, APP_NAME, "public-mcp.json");
 }
 
 export async function readDiscovery(file: string): Promise<DiscoveryDocument> {
@@ -55,7 +48,7 @@ export function validateDiscovery(value: unknown): DiscoveryDocument {
   if (!value || typeof value !== "object") throw discoveryError("discovery must be an object");
   const document = value as Record<string, unknown>;
   if (document.version !== 1) throw discoveryError(`unsupported discovery version ${String(document.version)}`);
-  if (typeof document.app !== "string" || !APP_NAMES.has(document.app)) throw discoveryError("unexpected discovery app");
+  if (document.app !== APP_NAME) throw discoveryError("unexpected discovery app");
   if (typeof document.host !== "string" || !isLoopback(document.host)) throw discoveryError("discovery host must be loopback");
   if (!Number.isInteger(document.port) || Number(document.port) < 1 || Number(document.port) > 65535) throw discoveryError("invalid discovery port");
   if (typeof document.token !== "string" || !TOKEN_PATTERN.test(document.token)) throw discoveryError("invalid discovery token");

@@ -1,7 +1,6 @@
 import type { Readable, Writable } from "node:stream";
 
-import { connectRuntimeSocket } from "./connection.js";
-import type { DiscoveryDocument } from "./discovery.js";
+import { connectRuntimeSocket, type DiscoveryDocument } from "@navop/client";
 
 export async function runBridge(
   discovery: DiscoveryDocument,
