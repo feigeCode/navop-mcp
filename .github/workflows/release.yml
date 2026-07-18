@@ -1,9 +1,8 @@
 name: Release
 
 on:
-  push:
-    tags: ['v*']
-  workflow_dispatch:
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -23,4 +22,13 @@ jobs:
       - run: npm install --global npm@11
       - run: npm ci
       - run: npm run check
-      - run: npm publish --access public --provenance
+      - name: Verify release tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          test "$RELEASE_TAG" = "v$PACKAGE_VERSION"
+      - name: Publish package
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
