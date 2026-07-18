@@ -3,6 +3,12 @@ name: Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish
+        required: true
+        default: v0.2.0
 
 permissions:
   contents: read
@@ -12,6 +18,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     environment: npm
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -23,15 +31,31 @@ jobs:
       - run: npm ci
       - run: npm run check
       - name: Verify release tag matches workspace package versions
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           test "$RELEASE_TAG" = "v$(node -p "require('./packages/cli/package.json').version")"
           test "$(node -p "require('./packages/client/package.json').version")" = "$(node -p "require('./packages/cli/package.json').version")"
           test "$(node -p "require('./packages/mcp/package.json').version")" = "$(node -p "require('./packages/cli/package.json').version")"
       - name: Publish client
-        run: npm publish --workspace @navop/client --access public --provenance
+        run: |
+          version="$(node -p "require('./packages/client/package.json').version")"
+          if npm view "@navop/client@$version" version >/dev/null 2>&1; then
+            echo "@navop/client@$version already exists; skipping"
+          else
+            npm publish --workspace @navop/client --access public --provenance
+          fi
       - name: Publish CLI
-        run: npm publish --workspace @navop/cli --access public --provenance
+        run: |
+          version="$(node -p "require('./packages/cli/package.json').version")"
+          if npm view "@navop/cli@$version" version >/dev/null 2>&1; then
+            echo "@navop/cli@$version already exists; skipping"
+          else
+            npm publish --workspace @navop/cli --access public --provenance
+          fi
       - name: Publish MCP bridge
-        run: npm publish --workspace @navop/mcp --access public --provenance
+        run: |
+          version="$(node -p "require('./packages/mcp/package.json').version")"
+          if npm view "@navop/mcp@$version" version >/dev/null 2>&1; then
+            echo "@navop/mcp@$version already exists; skipping"
+          else
+            npm publish --workspace @navop/mcp --access public --provenance
+          fi
