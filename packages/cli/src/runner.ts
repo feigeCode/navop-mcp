@@ -12,6 +12,9 @@ interface GlobalOptions {
   timeoutMs?: number;
 }
 
+const CONNECTION_ATTEMPTS = 5;
+const CONNECTION_RETRY_DELAY_MS = 75;
+
 export async function runCli(argv: string[]): Promise<{ result?: unknown; text?: string; json: boolean }> {
   const { args, options } = parseGlobalOptions(argv);
   if (args.length === 0) return { text: rootHelp(), json: false };
@@ -49,10 +52,8 @@ async function domainCommand(args: string[], options: GlobalOptions): Promise<un
 
 async function status(options: GlobalOptions): Promise<unknown> {
   const discoveryPath = await resolveDiscoveryPath(options.discovery);
-  const discovery = await readDiscovery(discoveryPath);
-  const connection = await McpConnection.connect(discovery, { ...timeoutOption(options), initialize: false });
+  const { discovery, connection, server } = await openConnectionAtPath(discoveryPath, options);
   try {
-    const server = await connection.initialize();
     const tools = await listTools(connection);
     const availableTools = tools.map((tool) => String(tool.name)).sort();
     const runtime = await runtimeStatus(connection, tools);
@@ -106,8 +107,46 @@ async function skillCommand(args: string[]): Promise<unknown> {
 }
 
 async function openConnection(options: GlobalOptions): Promise<McpConnection> {
-  const discovery = await readDiscovery(await resolveDiscoveryPath(options.discovery));
-  return McpConnection.connect(discovery, timeoutOption(options));
+  const discoveryPath = await resolveDiscoveryPath(options.discovery);
+  return (await openConnectionAtPath(discoveryPath, options)).connection;
+}
+
+async function openConnectionAtPath(
+  discoveryPath: string,
+  options: GlobalOptions,
+): Promise<{
+  discovery: Awaited<ReturnType<typeof readDiscovery>>;
+  connection: McpConnection;
+  server: unknown;
+}> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < CONNECTION_ATTEMPTS; attempt += 1) {
+    let connection: McpConnection | undefined;
+    try {
+      const discovery = await readDiscovery(discoveryPath);
+      connection = await McpConnection.connect(discovery, { ...timeoutOption(options), initialize: false });
+      const server = await connection.initialize();
+      return { discovery, connection, server };
+    } catch (error) {
+      connection?.close();
+      lastError = error;
+      if (attempt + 1 >= CONNECTION_ATTEMPTS || !isRetryableStartupError(error)) throw error;
+      await delay(CONNECTION_RETRY_DELAY_MS * 2 ** attempt);
+    }
+  }
+  throw lastError;
+}
+
+function isRetryableStartupError(error: unknown): boolean {
+  if (!(error instanceof NavopError)) return false;
+  if (error.code === "connection_closed") return true;
+  if (error.code !== "runtime_unavailable") return false;
+  if (!error.details || typeof error.details !== "object") return true;
+  return (error.details as { retryable?: unknown }).retryable !== false;
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function timeoutOption(options: GlobalOptions): { timeoutMs?: number } {

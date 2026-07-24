@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { runBridge } from "./bridge.js";
-import { exitCode, NavopError, readDiscovery, resolveDiscoveryPath } from "@navop/client";
+import { runBridgeFromDiscovery } from "./bridge.js";
+import { exitCode, NavopError, resolveDiscoveryPath } from "@navop/client";
 import { PACKAGE_VERSION } from "./version.js";
 
 async function main(argv: string[]): Promise<void> {
@@ -18,7 +18,7 @@ async function main(argv: string[]): Promise<void> {
     discovery = argv[++index];
     if (!discovery) throw new NavopError("invalid_arguments", "--discovery requires a path");
   }
-  await runBridge(await readDiscovery(await resolveDiscoveryPath(discovery)));
+  await runBridgeFromDiscovery(await resolveDiscoveryPath(discovery));
 }
 
 main(process.argv.slice(2)).catch((error) => {

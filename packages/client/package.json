@@ -1,6 +1,6 @@
 {
   "name": "@navop/client",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Shared authenticated client for a running Navop desktop application",
   "type": "module",
   "exports": "./dist/index.js",

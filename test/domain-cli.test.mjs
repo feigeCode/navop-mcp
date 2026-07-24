@@ -23,6 +23,31 @@ test("domain CLI discovers the schema and calls the mapped MCP tool", async () =
   server.close();
 });
 
+test("domain CLI re-reads discovery while the Navop runtime is restarting", async () => {
+  const calls = [];
+  const token = "9".repeat(64);
+  const root = await mkdtemp(path.join(os.tmpdir(), "navop-restart-cli-"));
+  const discovery = path.join(root, "public-mcp.json");
+  const staleServer = net.createServer();
+  await new Promise((resolve) => staleServer.listen(0, "127.0.0.1", resolve));
+  const stalePort = staleServer.address().port;
+  await new Promise((resolve) => staleServer.close(resolve));
+  await writeDiscovery(discovery, stalePort, token);
+
+  const command = run(["ssh", "exec", "--target", "ssh-1", "--command", "uname -a", "--discovery", discovery, "--json"]);
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  const replacement = net.createServer((socket) => serve(socket, token, calls));
+  await new Promise((resolve) => replacement.listen(0, "127.0.0.1", resolve));
+  await writeDiscovery(discovery, replacement.address().port, token);
+
+  const result = await command;
+  assert.equal(result.code, 0, result.stderr || result.stdout);
+  assert.deepEqual(JSON.parse(result.stdout), { ok: true, result: { accepted: true } });
+  assert.deepEqual(calls, [{ name: "ssh.exec", arguments: { target: "ssh-1", command: "uname -a" } }]);
+  replacement.close();
+});
+
 test("zero-argument leaf commands execute instead of showing group help", async () => {
   const calls = [];
   const token = "0".repeat(64);
@@ -231,6 +256,18 @@ function sshExecTool() {
 
 function respond(socket, id, result) {
   socket.write(`${JSON.stringify({ jsonrpc: "2.0", id, result })}\n`);
+}
+
+function writeDiscovery(file, port, token) {
+  return writeFile(file, JSON.stringify({
+    version: 1,
+    app: "navop",
+    pid: 1,
+    host: "127.0.0.1",
+    port,
+    token,
+    mode: "persistent",
+  }));
 }
 
 function run(args) {

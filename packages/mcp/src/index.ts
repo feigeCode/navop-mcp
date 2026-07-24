@@ -1,1 +1,1 @@
-export { runBridge } from "./bridge.js";
+export { runBridge, runBridgeFromDiscovery } from "./bridge.js";

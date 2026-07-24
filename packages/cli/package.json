@@ -1,6 +1,6 @@
 {
   "name": "@navop/cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Terminal CLI and Agent Skill for operating resources in a running Navop desktop application",
   "type": "module",
   "bin": { "navop": "dist/navop.js" },
@@ -12,7 +12,7 @@
   "scripts": {
     "build": "tsup src/navop.ts src/index.ts --format esm --platform node --target node20 --clean --sourcemap --dts"
   },
-  "dependencies": { "@navop/client": "0.2.0" },
+  "dependencies": { "@navop/client": "0.2.1" },
   "license": "MIT",
   "repository": { "type": "git", "url": "git+https://github.com/feigeCode/navop-mcp.git", "directory": "packages/cli" },
   "keywords": ["navop", "cli", "terminal", "skill", "agent"]

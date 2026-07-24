@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import net from "node:net";
 import test from "node:test";
 
-import { McpConnection } from "../packages/client/dist/index.js";
+import { createRuntimeConnectError, McpConnection } from "../packages/client/dist/index.js";
 
 test("MCP client handles partial reads and multiple messages in one chunk", async () => {
   const server = net.createServer((socket) => {
@@ -56,6 +56,29 @@ test("MCP client reports timeout, error response, and connection close", async (
   await assert.rejects(connection.request("error", {}), (error) => error.code === "protocol_error");
   await assert.rejects(connection.request("close", {}), (error) => error.code === "connection_closed");
   server.close();
+});
+
+test("MCP client explains when a sandbox denies loopback access", () => {
+  const cause = Object.assign(new Error("connect EPERM 127.0.0.1:63595 - Local (0.0.0.0:0)"), {
+    code: "EPERM",
+    errno: -1,
+    syscall: "connect",
+    address: "127.0.0.1",
+    port: 63595,
+  });
+  const error = createRuntimeConnectError(cause, "127.0.0.1", 63595);
+  assert.equal(error.code, "runtime_unavailable");
+  assert.match(error.message, /sandbox or security policy/);
+  assert.deepEqual(error.details, {
+    cause: cause.message,
+    osCode: "EPERM",
+    errno: -1,
+    syscall: "connect",
+    address: "127.0.0.1",
+    port: 63595,
+    retryable: false,
+    action: "Allow this process to access local loopback network connections, or run the command with an approved/unsandboxed execution policy.",
+  });
 });
 
 function listen(server) {

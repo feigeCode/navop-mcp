@@ -31,7 +31,14 @@ export class McpConnection {
   ): Promise<McpConnection> {
     const socket = await connectRuntimeSocket(discovery, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
     const connection = new McpConnection(socket, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-    if (options.initialize !== false) await connection.initialize();
+    if (options.initialize !== false) {
+      try {
+        await connection.initialize();
+      } catch (error) {
+        connection.close();
+        throw error;
+      }
+    }
     return connection;
   }
 
@@ -127,9 +134,33 @@ function connectSocket(host: string, port: number, timeoutMs: number): Promise<n
     });
     socket.once("error", (error) => {
       clearTimeout(timer);
-      reject(new NavopError("runtime_unavailable", `Cannot connect to Navop MCP at ${host}:${port}`, error.message));
+      reject(createRuntimeConnectError(error, host, port));
     });
   });
+}
+
+export function createRuntimeConnectError(error: NodeJS.ErrnoException, host: string, port: number): NavopError {
+  const denied = error.code === "EPERM" || error.code === "EACCES";
+  const endpoint = `${host}:${port}`;
+  const socketError = error as NodeJS.ErrnoException & { address?: string; port?: number };
+  return new NavopError(
+    "runtime_unavailable",
+    denied
+      ? `Cannot connect to Navop MCP at ${endpoint}: local loopback access was denied by the caller's sandbox or security policy`
+      : `Cannot connect to Navop MCP at ${endpoint}`,
+    {
+      cause: error.message,
+      osCode: error.code,
+      errno: error.errno,
+      syscall: error.syscall,
+      address: socketError.address ?? host,
+      port: socketError.port ?? port,
+      retryable: !denied,
+      action: denied
+        ? "Allow this process to access local loopback network connections, or run the command with an approved/unsandboxed execution policy."
+        : "Verify that Navop is running and MCP Server is enabled, then retry.",
+    },
+  );
 }
 
 function writeHandshake(socket: net.Socket, token: string): Promise<void> {
