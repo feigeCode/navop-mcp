@@ -29,8 +29,9 @@ navop status --json
 navop connections list --json
 navop tool list --json
 navop tool schema <tool-name> --json
-navop tool call <tool-name> --arguments '<json-object>' --json
 ```
+
+Prefer the domain commands listed by `navop --help`. `navop tool call` is the low-level fallback for a host tool that has no matching domain command.
 
 Representative resource commands use IDs returned by Navop:
 
@@ -40,7 +41,16 @@ navop sftp list --connection <ssh-connection-id-or-name> --path /var/log --json
 navop redis get --connection-id <redis-connection-id-or-name> --key app:status --json
 navop mongo find --connection-id <mongo-session-id> --database app --collection users --filter '{"active":true}' --limit 20 --json
 navop db query --connection <database-connection-id-or-name> --sql 'SELECT 1' --json
+navop db exec --connection <database-connection-id-or-name> --database app --sql 'CREATE TABLE IF NOT EXISTS example (id BIGINT PRIMARY KEY)' --json
 navop terminal read --target <terminal-session-id> --lines 80 --json
+```
+
+Use `db query` for read-only SQL and `db exec` for DDL, DML, scripts, and other write-capable SQL. Do not substitute `navop tool call db.exec` when `navop db exec` is available. Mutation permission and approval are controlled by the running Navop host.
+
+For a tool without a domain command:
+
+```bash
+navop tool call <tool-name> --arguments '<json-object-matching-live-schema>' --json
 ```
 
 The CLI is a global command. Check the registry and update the installed package when needed:

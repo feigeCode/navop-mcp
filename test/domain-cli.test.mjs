@@ -95,6 +95,50 @@ test("domain connection aliases map to the host target field", async () => {
   server.close();
 });
 
+test("db exec domain command maps write-capable SQL to db.exec", async () => {
+  const calls = [];
+  const token = "8".repeat(64);
+  const tools = [{
+    name: "db.exec",
+    description: "Execute a write-capable SQL script",
+    inputSchema: {
+      type: "object",
+      properties: {
+        target: { type: "string" },
+        database: { type: "string" },
+        sql: { type: "string" },
+      },
+      required: ["target"],
+    },
+  }];
+  const server = net.createServer((socket) => serve(socket, token, calls, tools));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  const root = await mkdtemp(path.join(os.tmpdir(), "navop-db-exec-cli-"));
+  const discovery = path.join(root, "public-mcp.json");
+  await writeFile(discovery, JSON.stringify({ version: 1, app: "navop", pid: 1, host: "127.0.0.1", port: address.port, token, mode: "persistent" }));
+
+  const result = await run([
+    "db", "exec",
+    "--connection", "8",
+    "--database", "ai_app3",
+    "--sql", "CREATE TABLE example (id BIGINT PRIMARY KEY)",
+    "--discovery", discovery,
+    "--json",
+  ]);
+
+  assert.equal(result.code, 0, result.stderr || result.stdout);
+  assert.deepEqual(calls, [{
+    name: "db.exec",
+    arguments: {
+      target: "8",
+      database: "ai_app3",
+      sql: "CREATE TABLE example (id BIGINT PRIMARY KEY)",
+    },
+  }]);
+  server.close();
+});
+
 test("mongo domain commands only map CLI arguments to Rust-hosted MCP tools", async () => {
   const calls = [];
   const token = "4".repeat(64);

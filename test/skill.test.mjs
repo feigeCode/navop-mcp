@@ -13,6 +13,12 @@ test("skill has stable frontmatter and installs without silent overwrite", async
   assert.match(text, /npm install -g @navop\/cli@latest/);
   assert.match(text, /navop status --json/);
   assert.match(text, /navop db query --help/);
+  assert.match(text, /navop db exec --help/);
+  assert.match(text, /Read-only statements use `navop db query`/);
+  assert.match(text, /DDL, DML, scripts.*use `navop db exec`/);
+  assert.match(text, /do not replace it with `navop tool call db\.exec`/);
+  assert.match(text, /Do not pass onetcli-only policy flags such as `--allow-write`/);
+  assert.match(text, /`tool call` is a low-level fallback, not the default/);
   assert.match(text, /navop tool list --json/);
   assert.match(text, /navop tool schema <tool-name> --json/);
   assert.match(text, /navop tool call <tool-name>/);

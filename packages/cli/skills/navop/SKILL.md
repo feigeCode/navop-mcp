@@ -39,9 +39,19 @@ navop --help
 navop tool list --json
 navop tool schema <tool-name> --json
 navop db query --help
+navop db exec --help
 ```
 
-If a domain command is exposed in help, use its help and then validate flags against the live schema. Otherwise call the exact host tool:
+Prefer a domain command whenever `navop --help` exposes one for the requested operation. Domain commands are the normal Agent interface; `tool call` is a low-level fallback, not the default. Use the command's help and validate its flags against the live schema.
+
+For SQL, choose the command by intent:
+
+- Read-only statements use `navop db query`.
+- DDL, DML, scripts, and other write-capable SQL use `navop db exec`.
+- When `navop db exec` is available, do not replace it with `navop tool call db.exec`.
+- Do not pass onetcli-only policy flags such as `--allow-write` to the `navop` CLI. Navop's live `permissionMode` and approval flow govern mutations.
+
+Only when no matching domain command is exposed, or when its mapping cannot represent the live input schema, call the exact host tool:
 
 ```bash
 navop tool call <tool-name> --arguments '<json-object-matching-live-schema>' --json
