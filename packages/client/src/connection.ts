@@ -4,7 +4,13 @@ import type { DiscoveryDocument } from "./discovery.js";
 import { NavopError } from "./errors.js";
 import { PACKAGE_VERSION } from "./version.js";
 
-const DEFAULT_TIMEOUT_MS = 10_000;
+/// How long a single MCP request may take before the client gives up. Kept
+/// generous because tools that trigger an approval dialog in Navop (permission
+/// mode "ask") can legitimately take a while for the operator to confirm.
+const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
+/// Socket connect + handshake deadline. Deliberately separate from the request
+/// timeout so a slow approval never delays the fast failure on a dead runtime.
+const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
 
 interface PendingRequest {
   resolve: (value: unknown) => void;
@@ -29,8 +35,8 @@ export class McpConnection {
     discovery: Pick<DiscoveryDocument, "host" | "port" | "token">,
     options: { timeoutMs?: number; initialize?: boolean } = {},
   ): Promise<McpConnection> {
-    const socket = await connectRuntimeSocket(discovery, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-    const connection = new McpConnection(socket, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    const socket = await connectRuntimeSocket(discovery, options.timeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS);
+    const connection = new McpConnection(socket, options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
     if (options.initialize !== false) {
       try {
         await connection.initialize();
@@ -114,7 +120,7 @@ export class McpConnection {
 
 export async function connectRuntimeSocket(
   discovery: Pick<DiscoveryDocument, "host" | "port" | "token">,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
+  timeoutMs = DEFAULT_CONNECT_TIMEOUT_MS,
 ): Promise<net.Socket> {
   const socket = await connectSocket(discovery.host, discovery.port, timeoutMs);
   await writeHandshake(socket, discovery.token);

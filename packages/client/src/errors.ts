@@ -7,7 +7,8 @@ export type ErrorCode =
   | "tool_failed"
   | "timeout"
   | "connection_closed"
-  | "skill_exists";
+  | "skill_exists"
+  | "approval_timeout";
 
 export class NavopError extends Error {
   constructor(
@@ -28,5 +29,6 @@ export function exitCode(error: unknown): number {
   if (error.code === "tool_failed") return 6;
   if (error.code === "timeout") return 8;
   if (error.code === "connection_closed") return 9;
+  if (error.code === "approval_timeout") return 10;
   return 4;
 }

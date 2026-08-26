@@ -19,7 +19,7 @@ const DOMAINS: Array<[string, string]> = [
 ];
 
 export function rootHelp(): string {
-  return `Usage: navop <command> [options]\n\nOperate tools exposed by a running Navop desktop application.\n\nCommands:\n${DOMAINS.map(([name, summary]) => `  ${name.padEnd(16)}${summary}`).join("\n")}\n\nGlobal options:\n  --discovery <path>  Use an explicit discovery file\n  --json              Emit a stable JSON response\n  --timeout <ms>      Set the request timeout\n  -h, --help          Show help\n  -V, --version       Show version\n`;
+  return `Usage: navop <command> [options]\n\nOperate tools exposed by a running Navop desktop application.\n\nCommands:\n${DOMAINS.map(([name, summary]) => `  ${name.padEnd(16)}${summary}`).join("\n")}\n\nGlobal options:\n  --discovery <path>  Use an explicit discovery file\n  --json              Emit a stable JSON response\n  --timeout <ms>      Request timeout; raise it if an approval dialog needs longer\n  -h, --help          Show help\n  -V, --version       Show version\n`;
 }
 
 export function commandHelp(path: string[]): string {
@@ -28,7 +28,7 @@ export function commandHelp(path: string[]): string {
   const children = commandChildren(path);
   const exact = DOMAIN_COMMANDS.find((candidate) => candidate.path.join(" ") === path.join(" "));
   if (exact) {
-    return `Usage: navop ${path.join(" ")} [options]\n\n${exact.summary}.\n\nOptions are validated against the schema exposed by the running Navop application.\n  --json              Emit a stable JSON response\n  --discovery <path>  Use an explicit discovery file\n  --timeout <ms>      Set the MCP request timeout\n  -h, --help          Show help\n`;
+    return `Usage: navop ${path.join(" ")} [options]\n\n${exact.summary}.\n\nOptions are validated against the schema exposed by the running Navop application.\n  --json              Emit a stable JSON response\n  --discovery <path>  Use an explicit discovery file\n  --timeout <ms>      Request timeout; raise it if an approval dialog needs longer\n  -h, --help          Show help\n`;
   }
   const direct = new Map<string, string>();
   for (const candidate of children) {
@@ -63,7 +63,7 @@ export function schemaHelp(path: string[], summary: string, schema: any, fixed: 
     const choices = property.enum ? ` [${property.enum.join("|")}]` : "";
     return `  ${`${flag} <${type}>`.padEnd(28)}${property.description ?? ""}${choices}${marker}`.trimEnd();
   });
-  return `Usage: navop ${path.join(" ")} [options]\n\n${summary}.\n\nOptions:\n${lines.join("\n")}\n  --json                      Emit a stable JSON response\n  --discovery <path>          Use an explicit discovery file\n  --timeout <ms>              Set the MCP request timeout\n  -h, --help                  Show help\n`;
+  return `Usage: navop ${path.join(" ")} [options]\n\n${summary}.\n\nOptions:\n${lines.join("\n")}\n  --json                      Emit a stable JSON response\n  --discovery <path>          Use an explicit discovery file\n  --timeout <ms>              Request timeout; raise it if an approval dialog needs longer\n  -h, --help                  Show help\n`;
 }
 
 function schemaType(property: any): string {

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 
 import { buildToolArguments } from "./arguments.js";
 import { commandChildren, resolveDomainCommand } from "./catalog.js";
-import { McpConnection, NavopError, readDiscovery, resolveDiscoveryPath } from "@navop/client";
+import { type ErrorCode, McpConnection, NavopError, readDiscovery, resolveDiscoveryPath } from "@navop/client";
 import { commandHelp, rootHelp, schemaHelp } from "./help.js";
 import { installSkill, printSkill } from "./skill.js";
 
@@ -241,7 +241,7 @@ function capabilityGuidance(permissionMode: string, disabledToolGroups: any[]): 
 
 async function callTool(connection: McpConnection, name: string, args: Record<string, unknown>): Promise<unknown> {
   const result = await connection.request("tools/call", { name, arguments: args });
-  if (result?.isError) throw new NavopError("tool_failed", toolMessage(result), result);
+  if (result?.isError) throw new NavopError(toolErrorCode(result), toolMessage(result), result);
   return result?.structuredContent ?? result;
 }
 
@@ -362,5 +362,12 @@ function readStdin(): Promise<string> {
 }
 
 function toolMessage(result: any): string {
+  if (result?.structuredContent?.code === "approval_timeout") {
+    return "Tool call was not confirmed in time (approval_timeout). Confirm it in Navop before the timeout, or raise the approval wait time in Navop Settings > General > MCP.";
+  }
   return result?.structuredContent?.message ?? result?.content?.[0]?.text ?? "Navop tool call failed";
+}
+
+function toolErrorCode(result: any): ErrorCode {
+  return result?.structuredContent?.code === "approval_timeout" ? "approval_timeout" : "tool_failed";
 }

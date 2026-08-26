@@ -246,6 +246,47 @@ test("leaf help uses the live Navop schema when available", async () => {
   server.close();
 });
 
+test("domain CLI reports an unconfirmed approval as approval_timeout", async () => {
+  const token = "7".repeat(64);
+  const server = net.createServer((socket) => {
+    let buffer = "";
+    socket.on("data", (chunk) => {
+      buffer += chunk.toString();
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (line === token || !line.startsWith("{")) continue;
+        const message = JSON.parse(line);
+        if (message.id === undefined) continue;
+        if (message.method === "initialize") {
+          respond(socket, message.id, {
+            protocolVersion: "2025-11-25",
+            capabilities: {},
+            serverInfo: { name: "navop", version: "1" },
+            instructions: "Navop Public MCP permission_mode=ask: mutating tools require approval in Navop.",
+          });
+        } else if (message.method === "tools/list") {
+          respond(socket, message.id, { tools: [sshExecTool()] });
+        } else if (message.method === "tools/call") {
+          respond(socket, message.id, {
+            structuredContent: { code: "approval_timeout", message: "approval_timeout" },
+            isError: true,
+          });
+        }
+      }
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const root = await mkdtemp(path.join(os.tmpdir(), "navop-approval-timeout-"));
+  const discovery = path.join(root, "public-mcp.json");
+  await writeDiscovery(discovery, server.address().port, token);
+
+  const result = await run(["ssh", "exec", "--target", "ssh-1", "--command", "uname -a", "--discovery", discovery]);
+  assert.equal(result.code, 10);
+  assert.match(result.stderr, /approval_timeout/);
+  server.close();
+});
+
 function serve(socket, token, calls, tools = [sshExecTool()]) {
   let buffer = "";
   socket.on("data", (chunk) => {
