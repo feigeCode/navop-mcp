@@ -34,6 +34,18 @@ test("the workspace exposes independent CLI and MCP packages", () => {
   assert.equal(output, "Usage: navop-mcp [--discovery <path>]\n");
 });
 
+test("the bridge tolerates the legacy 0.1.x mcp positional", () => {
+  const result = spawnSync(
+    process.execPath,
+    [path.resolve("packages/mcp/dist/navop-mcp.js"), "mcp", "--discovery", path.resolve("missing-public-mcp.json")],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.stdout, "");
+  assert.equal(result.status, 3);
+  assert.match(result.stderr, /discovery is unavailable/);
+  assert.doesNotMatch(result.stderr, /Usage: navop-mcp/);
+});
+
 test("incomplete domains show help without requiring Navop", () => {
   const output = execFileSync(process.execPath, [path.resolve("packages/cli/dist/navop.js"), "ssh"], { encoding: "utf8" });
   assert.match(output, /Usage: navop ssh <command>/);

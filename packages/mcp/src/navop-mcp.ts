@@ -14,6 +14,9 @@ async function main(argv: string[]): Promise<void> {
   }
   let discovery: string | undefined;
   for (let index = 0; index < argv.length; index += 1) {
+    // The 0.1.x launcher was `navop mcp --discovery <path>`; Navop builds released
+    // before the arg removal still generate that positional, so accept and ignore it.
+    if (index === 0 && argv[index] === "mcp") continue;
     if (argv[index] !== "--discovery") throw new NavopError("invalid_arguments", "Usage: navop-mcp [--discovery <path>]");
     discovery = argv[++index];
     if (!discovery) throw new NavopError("invalid_arguments", "--discovery requires a path");
