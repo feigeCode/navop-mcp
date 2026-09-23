@@ -1,10 +1,14 @@
 {
   "name": "navop-js",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*"],
-  "engines": { "node": ">=20" },
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "npm run build --workspace @navop/client && npm run build --workspace @navop/cli && npm run build --workspace @navop/mcp",
     "typecheck": "tsc --noEmit",

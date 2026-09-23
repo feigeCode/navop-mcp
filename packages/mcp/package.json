@@ -1,6 +1,6 @@
 {
   "name": "@navop/mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "MCP stdio bridge for a running Navop desktop application",
   "type": "module",
   "bin": {
@@ -23,7 +23,7 @@
     "build": "tsup src/navop-mcp.ts src/index.ts --format esm --platform node --target node20 --clean --sourcemap --dts"
   },
   "dependencies": {
-    "@navop/client": "0.3.0"
+    "@navop/client": "0.3.1"
   },
   "license": "MIT",
   "repository": {
