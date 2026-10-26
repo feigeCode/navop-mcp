@@ -5,6 +5,7 @@ import { commandChildren, resolveDomainCommand } from "./catalog.js";
 import { type ErrorCode, McpConnection, NavopError, readDiscovery, resolveDiscoveryPath } from "@navop/client";
 import { commandHelp, rootHelp, schemaHelp } from "./help.js";
 import { installSkill, printSkill } from "./skill.js";
+import { clientToolName, resolveAdvertisedToolName, toolGroupId } from "./tool-name.js";
 
 interface GlobalOptions {
   json: boolean;
@@ -44,7 +45,7 @@ async function domainCommand(args: string[], options: GlobalOptions): Promise<un
     const tool = await findTool(connection, command.tool);
     toolArgs = await expandConvenienceArguments(command.tool, toolArgs);
     const parsed = buildToolArguments(toolArgs, tool.inputSchema ?? {}, command.fixedArguments);
-    return callTool(connection, command.tool, parsed);
+    return callTool(connection, String(tool.name), parsed);
   } finally {
     connection.close();
   }
@@ -86,8 +87,8 @@ async function toolCommand(args: string[], options: GlobalOptions): Promise<unkn
     if (!name) throw new NavopError("invalid_arguments", `navop tool ${action ?? ""} requires a tool name`);
     if (action === "schema") return findTool(connection, name);
     if (action === "call") {
-      await findTool(connection, name);
-      return callTool(connection, name, await rawArguments(args.slice(2)));
+      const tool = await findTool(connection, name);
+      return callTool(connection, String(tool.name), await rawArguments(args.slice(2)));
     }
     throw new NavopError("invalid_arguments", "Usage: navop tool list|schema <tool>|call <tool>");
   } finally {
@@ -166,10 +167,12 @@ async function listTools(connection: McpConnection): Promise<any[]> {
 
 async function findTool(connection: McpConnection, name: string): Promise<any> {
   const tools = await listTools(connection);
-  const tool = tools.find((candidate) => candidate.name === name);
+  const advertised = resolveAdvertisedToolName(tools, name);
+  const tool = advertised === undefined ? undefined : tools.find((candidate) => candidate?.name === advertised);
   if (!tool) {
     const runtime = await runtimeStatus(connection, tools);
-    const groupId = toolGroupForName(name);
+    const groupId = toolGroupId(name);
+    const clientName = clientToolName(name);
     const group = Array.isArray(runtime?.toolGroups)
       ? runtime.toolGroups.find((candidate: any) => candidate?.id === groupId)
       : undefined;
@@ -178,9 +181,10 @@ async function findTool(connection: McpConnection, name: string): Promise<any> {
       : `Inspect ${runtime?.settingsPath ?? "Navop Settings > General > Tool Exposure"} and the required connection/session`;
     throw new NavopError(
       "tool_not_found",
-      `Navop tool is not available from the running host: ${name}. ${groupAction}, then retry discovery.`,
+      `Navop tool is not available from the running host: ${name} (wire name: ${clientName}). ${groupAction}, then retry discovery.`,
       {
         requiredTool: name,
+        requiredClientTool: clientName,
         requiredToolGroup: groupId,
         toolGroup: group ?? null,
         availableTools: tools.map((candidate) => candidate.name).sort(),
@@ -197,23 +201,14 @@ async function findTool(connection: McpConnection, name: string): Promise<any> {
 }
 
 async function runtimeStatus(connection: McpConnection, tools: any[]): Promise<any | undefined> {
-  if (!tools.some((tool) => tool?.name === "navop.runtime_status")) return undefined;
+  const name = resolveAdvertisedToolName(tools, "navop.runtime_status");
+  if (name === undefined) return undefined;
   const result = await connection.request("tools/call", {
-    name: "navop.runtime_status",
+    name,
     arguments: {},
   });
   if (result?.isError) return undefined;
   return result?.structuredContent ?? result;
-}
-
-function toolGroupForName(name: string): string {
-  const prefix = name.split(".", 1)[0] ?? name;
-  if (prefix === "ssh") return "ssh";
-  if (prefix === "terminal") return "terminal_exec";
-  if (prefix === "db") return "database";
-  if (prefix === "mongo" || prefix === "mongodb") return "mongodb";
-  if (prefix === "internal_functions" || prefix === "functions") return "internal_functions";
-  return prefix;
 }
 
 function permissionModeFromServer(server: any): "deny" | "ask" | "allow" | "unknown" {

@@ -11,6 +11,8 @@ navop tool list --json
 navop tool schema <tool-name> --json
 ```
 
+`navop tool list` prints the names the host advertises on the wire, where the internal dotted tool ids are folded to function-calling safe names (`sftp.upload` becomes `sftp_upload`). Domain commands, `navop tool schema`, and `navop tool call` accept either spelling; use the exact name reported by `navop tool list` when a host reports a collision-suffixed name such as `sftp_upload_2`.
+
 Prefer the domain command shown by `navop --help`. Use the low-level tool call only when no matching domain command exists or its mapping cannot represent the live schema:
 
 ```bash

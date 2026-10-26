@@ -230,6 +230,131 @@ test("status reports live host tools and authoritative runtime tool groups", asy
   server.close();
 });
 
+test("domain commands resolve the sanitized wire name the host advertises", async (t) => {
+  // 0.15.0 起宿主把内部 id（`sftp.upload`）净化成函数调用安全的名字
+  // （`sftp_upload`）再上 tools/list；便利命令仍按内部 id 映射，必须能对上。
+  const calls = [];
+  const token = "b".repeat(64);
+  const tools = [{
+    name: "sftp_upload",
+    description: "Upload a local file or folder to a remote SFTP path.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        target: { type: "string" },
+        local_path: { type: "string" },
+        remote_path: { type: "string" },
+        on_exists: { type: "string", enum: ["fail", "overwrite", "skip"] },
+      },
+      required: ["target", "local_path", "remote_path"],
+    },
+  }];
+  const server = net.createServer((socket) => serve(socket, token, calls, tools));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => server.close());
+  const address = server.address();
+  const root = await mkdtemp(path.join(os.tmpdir(), "navop-sanitized-domain-"));
+  const discovery = path.join(root, "public-mcp.json");
+  await writeFile(discovery, JSON.stringify({ version: 1, app: "navop", pid: 1, host: "127.0.0.1", port: address.port, token, mode: "persistent" }));
+
+  const result = await run([
+    "sftp", "upload",
+    "--connection", "74",
+    "--local-path", "/tmp/app.jar",
+    "--remote-path", "/data/app.jar",
+    "--on-exists", "overwrite",
+    "--discovery", discovery,
+    "--json",
+  ]);
+
+  assert.equal(result.code, 0, result.stderr || result.stdout);
+  assert.deepEqual(JSON.parse(result.stdout), { ok: true, result: { accepted: true } });
+  assert.deepEqual(calls, [{
+    name: "sftp_upload",
+    arguments: {
+      target: "74",
+      local_path: "/tmp/app.jar",
+      remote_path: "/data/app.jar",
+      on_exists: "overwrite",
+    },
+  }]);
+});
+
+test("raw tool calls and schema lookups accept the internal dotted id", async (t) => {
+  const calls = [];
+  const token = "c".repeat(64);
+  const tools = [{
+    name: "ssh_exec",
+    description: "Execute remote command",
+    inputSchema: {
+      type: "object",
+      properties: { target: { type: "string" }, command: { type: "string" } },
+      required: ["target", "command"],
+    },
+  }];
+  const server = net.createServer((socket) => serve(socket, token, calls, tools));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => server.close());
+  const address = server.address();
+  const root = await mkdtemp(path.join(os.tmpdir(), "navop-sanitized-raw-"));
+  const discovery = path.join(root, "public-mcp.json");
+  await writeFile(discovery, JSON.stringify({ version: 1, app: "navop", pid: 1, host: "127.0.0.1", port: address.port, token, mode: "persistent" }));
+
+  const schema = await run(["tool", "schema", "ssh.exec", "--discovery", discovery, "--json"]);
+  assert.equal(schema.code, 0, schema.stderr || schema.stdout);
+  assert.equal(JSON.parse(schema.stdout).result.name, "ssh_exec");
+
+  const called = await run([
+    "call", "ssh.exec",
+    "--arguments", '{"target":"ssh-1","command":"uname -a"}',
+    "--discovery", discovery,
+    "--json",
+  ]);
+  assert.equal(called.code, 0, called.stderr || called.stdout);
+  assert.deepEqual(JSON.parse(called.stdout), { ok: true, result: { accepted: true } });
+  assert.deepEqual(calls, [{ name: "ssh_exec", arguments: { target: "ssh-1", command: "uname -a" } }]);
+});
+
+test("status resolves the sanitized runtime status tool", async (t) => {
+  const token = "d".repeat(64);
+  const calls = [];
+  const server = net.createServer((socket) => serve(socket, token, calls, [
+    sshExecToolWith("ssh_exec"),
+    { name: "navop_runtime_status", description: "Runtime status", inputSchema: { type: "object", properties: {} } },
+  ]));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => server.close());
+  const address = server.address();
+  const root = await mkdtemp(path.join(os.tmpdir(), "navop-sanitized-status-"));
+  const discovery = path.join(root, "public-mcp.json");
+  await writeFile(discovery, JSON.stringify({ version: 1, app: "navop", pid: 1, host: "127.0.0.1", port: address.port, token, mode: "persistent" }));
+
+  const result = await run(["status", "--discovery", discovery, "--json"]);
+  assert.equal(result.code, 0, result.stderr || result.stdout);
+  const status = JSON.parse(result.stdout).result;
+  assert.deepEqual(status.availableTools, ["navop_runtime_status", "ssh_exec"]);
+  assert.notEqual(status.runtime, null);
+  assert.deepEqual(status.disabledToolGroups, [{ id: "database", enabled: false }]);
+  assert.ok(calls.some((call) => call.name === "navop_runtime_status"));
+});
+
+test("an unexposed tool names the sanitized wire form in its failure details", async (t) => {
+  const token = "a".repeat(64);
+  const server = net.createServer((socket) => serve(socket, token, [], []));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => server.close());
+  const address = server.address();
+  const root = await mkdtemp(path.join(os.tmpdir(), "navop-sanitized-missing-"));
+  const discovery = path.join(root, "public-mcp.json");
+  await writeFile(discovery, JSON.stringify({ version: 1, app: "navop", pid: 1, host: "127.0.0.1", port: address.port, token, mode: "persistent" }));
+
+  const result = await run(["sftp", "upload", "--target", "74", "--local-path", "/tmp/a", "--remote-path", "/tmp/b", "--discovery", discovery, "--json"]);
+  assert.equal(result.code, 5);
+  const failure = JSON.parse(result.stdout);
+  assert.equal(failure.details.requiredTool, "sftp.upload");
+  assert.equal(failure.details.requiredClientTool, "sftp_upload");
+});
+
 test("leaf help uses the live Navop schema when available", async () => {
   const token = "1".repeat(64);
   const server = net.createServer((socket) => serve(socket, token, []));
@@ -306,7 +431,7 @@ function serve(socket, token, calls, tools = [sshExecTool()]) {
       if (message.method === "tools/list") respond(socket, message.id, { tools });
       if (message.method === "tools/call") {
         calls.push(message.params);
-        if (message.params.name === "navop.runtime_status") {
+        if (message.params.name === "navop.runtime_status" || message.params.name === "navop_runtime_status") {
           respond(socket, message.id, {
             structuredContent: {
               contractVersion: 1,
@@ -328,8 +453,12 @@ function serve(socket, token, calls, tools = [sshExecTool()]) {
 }
 
 function sshExecTool() {
+  return sshExecToolWith("ssh.exec");
+}
+
+function sshExecToolWith(name) {
   return {
-    name: "ssh.exec",
+    name,
     description: "Execute remote command",
     inputSchema: {
       type: "object",

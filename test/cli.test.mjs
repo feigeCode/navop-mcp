@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { buildToolArguments, resolveDomainCommand, rootHelp } from "../packages/cli/dist/index.js";
+import { buildToolArguments, clientToolName, resolveDomainCommand, rootHelp } from "../packages/cli/dist/index.js";
 
 test("navop --help exposes the domain command tree", () => {
   const output = execFileSync(process.execPath, [path.resolve("packages/cli/dist/navop.js"), "--help"], { encoding: "utf8" });
@@ -106,4 +106,15 @@ test("terminal interrupt injects the fixed control action", () => {
     ),
     { target: "terminal-1", action: "interrupt" },
   );
+});
+
+test("internal dotted tool ids map to the sanitized wire names the host advertises", () => {
+  // 与宿主 crates/agent_runtime 的 sanitize_tool_name 保持同一规则：`.` 等非法
+  // 字符变 `_`、连续 `_` 合并、首尾 `_` 去掉，所以点号 id 能对上净化后的名字。
+  assert.equal(clientToolName("sftp.upload"), "sftp_upload");
+  assert.equal(clientToolName("ssh.command.poll"), "ssh_command_poll");
+  assert.equal(clientToolName("navop.runtime_status"), "navop_runtime_status");
+  assert.equal(clientToolName("db.describe_table"), "db_describe_table");
+  assert.equal(clientToolName("already_safe"), "already_safe");
+  assert.equal(clientToolName("weird..::name"), "weird_name");
 });
